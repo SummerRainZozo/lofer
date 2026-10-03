@@ -1,0 +1,46 @@
+# ---- macOS ----
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ---- Xcode: build output and personal settings ----
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.xcscmblueprint
+timeline.xctimeline
+playground.xcworkspace
+
+# ---- Swift Package Manager ----
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# ---- VS Code (keep shared settings, ignore personal ones) ----
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# ---- Secrets: NEVER commit keys or tokens ----
+.env
+.env.*
+*.env
+Secrets.swift
+Secrets.xcconfig
+*.p8
+*.p12
+*.mobileprovision
+GoogleService-Info.plist
+
+# ---- Misc ----
+*.log
+node_modules/

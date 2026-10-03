@@ -1,0 +1,14 @@
+{
+  "files.exclude": {
+    "**/.DS_Store": true,
+    "**/xcuserdata": true,
+    "**/DerivedData": true
+  },
+  "search.exclude": {
+    "**/*.bin": true,
+    "docs/artifact-reference/**": false
+  },
+  "editor.tabSize": 4,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true
+}

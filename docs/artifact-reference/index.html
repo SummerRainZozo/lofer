@@ -1,0 +1,2532 @@
+<title>Lofer App Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600&family=Quicksand:wght@300;400&display=swap">
+<!-- Typography candidates (only for the #typography comparison screen; not applied yet) -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Hanken+Grotesk:wght@300;400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:dark;
+  --ink:#0B0A0A; --char:#171514; --char-2:#23201F; --mocha:#6B5345; --peach:#E4B598; --cream:#F3EBE2; --lilac:#B8B2C6;
+  --text:#F3EBE2; --muted:#A39690; --faint:#6F6560;
+  --line:rgba(243,235,226,.09); --line-2:rgba(243,235,226,.17);
+  --glass:rgba(34,30,29,.62);
+  --ui:"Figtree",-apple-system,"SF Pro Text",system-ui,sans-serif;
+  --brand:"Quicksand","Figtree",system-ui,sans-serif;
+  --ease:cubic-bezier(.22,.7,.12,1);
+  --sb:47px;
+}
+html,body{height:100%}
+body{background:var(--ink);color:var(--text);font-family:var(--ui);font-size:15px;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible,canvas:focus-visible{outline:1.5px solid var(--peach);outline-offset:3px}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- stage ---------- */
+.stage{height:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:72px;padding:20px 16px;
+  background:radial-gradient(1000px 640px at 64% 38%,#1E1714 0%,var(--ink) 62%)}
+.device{position:relative;height:min(844px,100%);aspect-ratio:390/844;max-width:100%;border-radius:54px;overflow:hidden;flex:none;
+  background:var(--ink);box-shadow:0 0 0 1px rgba(243,235,226,.12),0 0 0 10px #0E0D0D,0 0 0 11px rgba(243,235,226,.07),0 60px 120px rgba(0,0,0,.7)}
+@media (max-width:600px){
+  :root{--sb:6px}
+  .stage{padding:0}
+  .device{height:100%;width:100%;aspect-ratio:auto;border-radius:0;box-shadow:none}
+  .statusbar,.homebar{display:none}
+}
+
+/* ---------- side notes (desktop) ---------- */
+.notes{display:none;width:280px;flex-direction:column;gap:24px}
+@media (min-width:1000px){.notes{display:flex}}
+.eyebrow{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:500}
+.notes .wm{display:flex;align-items:center;gap:12px}
+.notes .wm svg{width:54px}
+.notes .wm b{font-family:var(--brand);font-weight:300;font-size:38px;letter-spacing:.01em}
+.notes .lede{color:var(--muted);line-height:1.55;margin:0;font-size:14px}
+.flow{list-style:none;margin:0;padding:0;display:grid;gap:2px;counter-reset:f}
+.flow li{counter-increment:f;display:flex;align-items:center;gap:12px;padding:7px 0;color:var(--faint);font-size:13.5px;transition:color .5s}
+.flow li::before{content:counter(f);font-size:10.5px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);transition:all .5s}
+.flow li.done{color:var(--muted)}
+.flow li.on{color:var(--text)}
+.flow li.on::before{border-color:var(--peach);color:var(--peach);box-shadow:0 0 14px rgba(228,181,152,.35)}
+.flow em{font-style:normal;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-left:auto}
+.try{display:grid;gap:7px}
+.try .say{text-align:left;font-size:14px;line-height:1.35;color:#D9CEC6;padding:9px 12px;border-radius:14px;border:1px solid var(--line);background:rgba(35,32,31,.5);transition:border-color .3s,color .3s}
+.try .say:hover{border-color:var(--line-2);color:var(--text)}
+.fine{font-size:12.5px;color:var(--faint);line-height:1.5;margin:0}
+.ghost{justify-self:start;font-size:12.5px;color:var(--muted);padding:8px 14px;border:1px solid var(--line);border-radius:999px}
+.ghost:hover{color:var(--text);border-color:var(--line-2)}
+
+/* ---------- app shell ---------- */
+.app{position:absolute;inset:0;overflow:hidden;background:radial-gradient(120% 60% at 50% 20%,#231B17 0%,#120F0E 45%,#0A0909 100%)}
+.statusbar{position:absolute;top:0;left:0;right:0;height:47px;z-index:70;display:flex;align-items:center;justify-content:space-between;padding:4px 30px 0 38px;box-sizing:border-box;font-size:15px;font-weight:600;letter-spacing:-.01em;pointer-events:none}
+.statusbar .icons{display:flex;gap:6px;align-items:center}
+.statusbar svg{height:12px;fill:var(--text)}
+.homebar{position:absolute;left:50%;bottom:8px;width:134px;height:5px;border-radius:3px;background:rgba(243,235,226,.55);transform:translateX(-50%);z-index:70;pointer-events:none}
+
+.horizon{position:absolute;left:-45%;right:-45%;height:100%;top:74%;border-radius:50%;z-index:0;pointer-events:none;
+  background:radial-gradient(60% 18% at 50% 0%,rgba(228,181,152,.10),transparent 70%),#0A0808;
+  box-shadow:0 -1px 0 rgba(243,210,186,.55),0 -18px 60px rgba(228,181,152,.16),0 -80px 140px rgba(228,181,152,.06);
+  transition:transform 1.6s var(--ease),opacity 1.2s var(--ease)}
+.app.intro .horizon{transform:translateY(40%);opacity:0}
+.app.bodymode .horizon{transform:translateY(12%);opacity:.55}
+
+.scene{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .9s var(--ease);z-index:4}
+.scene.on{opacity:1;pointer-events:auto}
+
+/* ---------- splash ---------- */
+.splash{position:absolute;inset:0;z-index:60;display:grid;place-items:center;background:#0A0909;transition:opacity 1.1s var(--ease)}
+.splash.fadebg{background:transparent;transition:background 1.2s var(--ease)}
+.splash.gone{opacity:0;pointer-events:none}
+.lockup{display:grid;justify-items:center;gap:6px;margin-top:-40px}
+.lockup .peb{width:128px}
+.lockup .word{font-family:var(--brand);font-weight:300;font-size:50px;letter-spacing:.01em;line-height:1}
+.lockup .tag{font-size:9.5px;letter-spacing:.42em;color:#CFC3BA;margin-top:12px;padding-left:.42em}
+.splash.play .lockup{animation:lIn 1.1s var(--ease) .15s both,lBreathe 1.1s ease-in-out 1.2s both,lOut 1.3s cubic-bezier(.45,0,.25,1) 2.2s forwards}
+@keyframes lIn{from{opacity:0;filter:blur(10px);transform:scale(.95)}to{opacity:1;filter:blur(0);transform:none}}
+@keyframes lBreathe{50%{transform:scale(1.025);filter:drop-shadow(0 0 22px rgba(228,181,152,.35))}}
+@keyframes lOut{to{opacity:0;filter:blur(10px);transform:translateY(-40px) scale(1.04)}}
+.fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:61}
+
+/* ---------- agent orb ---------- */
+.orb{position:absolute;z-index:25;left:50%;top:50%;width:300px;height:300px;cursor:pointer;opacity:0;
+  transform:translate(-50%,-50%) scale(.88);transition:left 1.1s var(--ease),top 1.1s var(--ease),transform 1.1s var(--ease),opacity 1.2s var(--ease)}
+.orb.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+/* Docked: sits in the voice bar's centre slot; JS feeds --ox/--oy from #dmic's position. Taps go to #dmic underneath. */
+.orb.show.docked{left:var(--ox,50%);top:var(--oy,90%);transform:translate(-50%,-50%) scale(.36);pointer-events:none}
+.orb.away{opacity:0!important;pointer-events:none}
+
+/* ---------- home ---------- */
+.h-logo{position:absolute;top:calc(var(--sb) + 26px);left:50%;transform:translateX(-50%);width:46px}
+.h-copy{position:absolute;left:28px;right:28px;top:calc(var(--sb) + 104px);text-align:center;display:grid;justify-items:center;gap:10px}
+.greet{font-weight:300;font-size:31px;line-height:1.16;margin:0;letter-spacing:-.012em;text-wrap:balance;max-width:12em;transition:opacity .28s,transform .28s}
+.swap{opacity:0!important;transform:translateY(5px)}
+.ctx{margin:0;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--peach)}
+.h-under{position:absolute;left:28px;right:28px;top:calc(50% + 120px);display:grid;justify-items:center;gap:8px;text-align:center}
+.heard{margin:0;color:var(--muted);font-size:14.5px;line-height:1.45;max-width:30ch;min-height:1.4em;text-wrap:pretty}
+.sim{margin:0;font-size:11px;color:var(--faint)}
+.talkrow{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px}
+.talkrow .tap{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:rgba(35,32,31,.45)}
+.talkrow .tap svg{width:15px;height:15px}
+.talkrow .tap.on{border-color:var(--peach);color:var(--text);box-shadow:0 0 22px rgba(228,181,152,.25)}
+.talkrow .type{padding:7px 10px;color:var(--faint);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line-2)}
+.route{position:absolute;left:18px;right:18px;bottom:40px;display:flex;align-items:center;gap:14px;padding:15px 18px;border-radius:26px;
+  border:1px solid var(--line-2);background:linear-gradient(180deg,rgba(52,46,43,.55),rgba(26,23,22,.7));-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);text-align:left;transition:border-color .3s}
+.route:hover{border-color:rgba(228,181,152,.4)}
+.route .fig{width:30px;height:30px;display:grid;place-items:center;color:var(--cream)}
+.route .fig svg{width:24px;height:24px}
+.route b{font-weight:400;font-size:15.5px;display:block}
+.route small{color:var(--muted);font-size:12.5px}
+.route .chev{margin-left:auto;color:var(--muted)}
+
+/* ---------- body scene ---------- */
+#bodyScene,#bodyScene.on{pointer-events:none}
+#bodyScene.on .nav,#bodyScene.on .dock,#bodyScene.on .sheet,#bodyScene.on .bodytools{pointer-events:auto}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1;touch-action:none;cursor:grab;opacity:0;transition:opacity 1.2s var(--ease)}
+#gl.on{opacity:1}
+#gl:active{cursor:grabbing}
+.nav{position:absolute;top:calc(var(--sb) + 4px);left:14px;right:14px;height:44px;display:flex;align-items:center;gap:10px;z-index:12}
+.circ{width:36px;height:36px;flex:none;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:rgba(35,32,31,.6);color:var(--text);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.circ svg{width:17px;height:17px}
+.trail{flex:1;min-width:0;display:flex;align-items:center;gap:2px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:500}
+.trail::-webkit-scrollbar{display:none}
+.trail button{color:var(--faint);padding:6px 4px;border-radius:8px}
+.trail button:hover{color:var(--text)}
+.trail button[aria-current]{color:var(--text)}
+.trail span{color:var(--faint);opacity:.6;padding:0 2px}
+/* INFORMATION ZONE: a quiet surface so text never sits raw over the body */
+.dock{position:absolute;top:calc(var(--sb) + 52px);left:12px;right:12px;z-index:12;padding:10px 14px 12px;border-radius:22px;
+  background:linear-gradient(180deg,rgba(18,15,14,.82),rgba(18,15,14,.55));-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.dock-text{display:grid;gap:4px;text-align:center;justify-items:center}
+/* BODY ZONE tools */
+.bodytools{position:absolute;right:12px;z-index:11;display:flex;flex-direction:column;align-items:flex-end;gap:8px;transition:top .5s var(--ease)}
+.bodytools .views{display:flex;padding:3px;border-radius:999px;border:1px solid var(--line);background:rgba(24,21,20,.7);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.bodytools .views button{font-size:11px;padding:5px 9px;border-radius:999px;color:var(--muted)}
+.bodytools .views button[aria-pressed="true"]{background:rgba(228,181,152,.16);color:var(--text)}
+.resetpill{font-size:11.5px;padding:6px 11px;border-radius:999px;border:1px solid var(--line-2);background:rgba(24,21,20,.7);color:var(--muted);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.resetpill:hover{color:var(--text)}
+/* When the sheet needs the room, the body sits behind it and the sheet becomes a solid card */
+.sheet.solid{background:linear-gradient(180deg,rgba(36,32,30,.97),rgba(20,18,17,.99))}
+.dmsg{font-weight:300;font-size:19px;line-height:1.28;margin:0;letter-spacing:-.01em;text-wrap:balance;transition:opacity .28s,transform .28s}
+.dock .heard{font-size:12.5px;max-width:none;min-height:0}
+.voicebar{display:grid;grid-template-columns:1fr 64px 1fr;align-items:center;margin:2px -4px -8px;padding-top:10px;border-top:1px solid var(--line)}
+.vb-side{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);justify-self:start;padding:8px 6px}
+.vb-side svg{width:17px;height:17px}
+button.vb-side:hover{color:var(--text)}
+.vb-hint{justify-self:end}
+.vb-orb{width:52px;height:52px;border-radius:50%;justify-self:center}
+.vb-orb.on+.vb-hint,.vb-orb.on~.vb-hint{color:var(--peach)}
+.tagpin{position:absolute;left:0;top:0;z-index:8;pointer-events:none;display:flex;align-items:center;gap:7px;opacity:0;transition:opacity .4s;
+  padding:5px 10px 5px 8px;border-radius:999px;background:rgba(24,21,20,.78);border:1px solid rgba(228,181,152,.35);font-size:12px;white-space:nowrap;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.tagpin i{width:6px;height:6px;border-radius:50%;background:var(--peach);box-shadow:0 0 8px var(--peach)}
+.tagpin.on{opacity:1}
+.hint3d{position:absolute;left:0;right:0;z-index:6;text-align:center;font-size:11.5px;color:var(--faint);pointer-events:none;transition:opacity .6s}
+.loading{position:absolute;left:0;right:0;top:40%;text-align:center;color:var(--muted);font-size:13px;z-index:6}
+
+.sheet{position:absolute;left:8px;right:8px;bottom:8px;z-index:15;border-radius:32px;padding:10px 16px 24px;display:grid;gap:13px;
+  background:linear-gradient(180deg,rgba(44,39,37,.72),rgba(22,19,18,.9));border:1px solid var(--line-2);
+  -webkit-backdrop-filter:blur(22px) saturate(120%);backdrop-filter:blur(22px) saturate(120%);box-shadow:0 -14px 40px rgba(0,0,0,.4)}
+.grab{justify-self:center;width:36px;height:5px;border-radius:3px;background:rgba(243,235,226,.2)}
+.sheet>*:not(.grab){animation:rise .5s var(--ease) both}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.sh-head{display:grid;gap:5px;padding:0 4px}
+.sh-title{margin:0;font-weight:500;font-size:21px;letter-spacing:-.012em;line-height:1.2}
+.term{margin:0;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--peach);opacity:.85}
+.sh-sub{margin:0;color:var(--muted);font-size:13.5px;line-height:1.45}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{height:34px;padding:0 13px;border-radius:17px;border:1px solid var(--line-2);background:rgba(58,52,49,.35);font-size:13px;color:#E6DBD2;transition:border-color .25s,background .25s}
+.chip:hover{border-color:rgba(228,181,152,.5);background:rgba(90,72,62,.35)}
+.actions{display:flex;gap:8px}
+.btn{flex:1;height:48px;border-radius:24px;font-weight:500;font-size:15px;border:1px solid var(--line-2);background:rgba(58,52,49,.3);color:var(--text)}
+.btn.primary{background:linear-gradient(180deg,#F6E6D8,#E4C0A6);color:#1A1210;border-color:transparent;box-shadow:0 0 26px rgba(228,181,152,.25)}
+.btn.primary:hover{filter:brightness(1.05)}
+.note{margin:0;padding:10px 12px;border-radius:16px;font-size:12.5px;line-height:1.45;color:#EBD3B2;background:rgba(228,181,152,.07);border:1px solid rgba(228,181,152,.2)}
+.next{border:1px dashed var(--line-2);border-radius:18px;padding:12px 14px;display:grid;gap:4px}
+.next p{margin:0;font-size:13.5px;color:var(--muted)}
+
+/* ---------- pages (profile, track record, session) ---------- */
+.page{background:linear-gradient(180deg,#171311 0%,#0E0C0B 60%);transform:translateX(28px);transition:opacity .5s var(--ease),transform .5s var(--ease);z-index:30}
+.page.on{transform:none}
+.pnav{position:absolute;top:calc(var(--sb) + 4px);left:14px;right:14px;height:44px;display:grid;grid-template-columns:36px 1fr 36px;align-items:center;z-index:2}
+.pnav-t{text-align:center;font-weight:500;font-size:15.5px;opacity:0;transition:opacity .3s}
+.page.scrolled .pnav-t{opacity:1}
+.pscroll{position:absolute;inset:calc(var(--sb) + 52px) 0 0;overflow-y:auto;padding:4px 18px 48px;display:grid;align-content:start;gap:22px;scrollbar-width:none}
+.pscroll::-webkit-scrollbar{display:none}
+.ptitle{font-weight:300;font-size:32px;letter-spacing:-.02em;margin:0;line-height:1.1}
+.plede{margin:6px 0 0;color:var(--muted);font-size:14px;line-height:1.5}
+.group{display:grid;gap:10px}
+.group>h3{margin:0 4px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.card{border-radius:22px;background:rgba(40,35,33,.55);border:1px solid var(--line);padding:6px 16px}
+.row{display:grid;gap:10px;padding:13px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row>label,.row>.rl{font-size:14.5px;color:var(--text)}
+.row .hintx{font-size:12.5px;color:var(--faint);margin-top:-4px}
+.row input[type=text]{background:rgba(58,52,49,.35);border:1px solid var(--line-2);border-radius:12px;height:40px;padding:0 12px;color:var(--text);font:inherit;outline:none}
+.row input[type=text]:focus{border-color:rgba(228,181,152,.5)}
+.opts{display:flex;flex-wrap:wrap;gap:7px}
+.opt{height:34px;padding:0 13px;border-radius:17px;border:1px solid var(--line-2);background:transparent;font-size:13px;color:#D8CCC3;transition:all .25s}
+.opt[aria-pressed="true"]{background:linear-gradient(180deg,#F1DCCB,#DDB79C);color:#1A1210;border-color:transparent}
+.tog{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:14.5px}
+.switch{position:relative;width:48px;height:29px;flex:none;border-radius:15px;background:rgba(243,235,226,.14);transition:background .25s}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:23px;height:23px;border-radius:50%;background:#F3EBE2;transition:transform .25s var(--ease)}
+.switch[aria-checked="true"]{background:#D9AE92}
+.switch[aria-checked="true"]::after{transform:translateX(19px)}
+.tune{border-radius:22px;padding:16px;background:radial-gradient(120% 140% at 0% 0%,rgba(228,181,152,.16),rgba(40,35,33,.5) 60%);border:1px solid rgba(228,181,152,.22);display:grid;gap:6px}
+.tune b{font-weight:500;font-size:16px}
+.tune p{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
+.linkbtn{justify-self:start;color:var(--peach);font-size:13.5px;padding:6px 0}
+.danger{color:#E7A58F}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{border-radius:18px;padding:12px;background:rgba(40,35,33,.55);border:1px solid var(--line);display:grid;gap:4px;min-width:0}
+.stat b{font-weight:400;font-size:22px;font-variant-numeric:tabular-nums;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat span{font-size:11px;color:var(--muted);letter-spacing:.04em}
+.bodymap{border-radius:22px;background:rgba(30,26,25,.6);border:1px solid var(--line);padding:10px 10px 12px;display:grid;gap:6px}
+.bodymap canvas{width:100%;height:auto;aspect-ratio:2/1.55;display:block;cursor:pointer}
+.bodymap .cap{display:flex;justify-content:space-around;font-size:11px;color:var(--faint);letter-spacing:.14em;text-transform:uppercase}
+.filter{justify-self:start;display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 8px 6px 12px;border-radius:999px;border:1px solid rgba(228,181,152,.35);color:var(--text)}
+.sess{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line);text-align:left;width:100%}
+.sess:last-child{border-bottom:0}
+.sess .t{font-size:15px;font-weight:500}
+.sess .m{font-size:12.5px;color:var(--muted);grid-column:1}
+.sess .pain{grid-row:1/3;grid-column:2;display:grid;justify-items:end;gap:4px;font-size:11px;color:var(--muted)}
+.badge{display:inline-block;margin-left:6px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);border:1px solid var(--line-2);border-radius:6px;padding:1px 5px;vertical-align:2px}
+.dumb{width:74px;height:14px;display:block}
+.dayhead{margin:6px 4px -4px;font-size:12px;color:var(--faint)}
+.detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.chartbox{border-radius:22px;background:rgba(30,26,25,.6);border:1px solid var(--line);padding:14px 12px 10px;display:grid;gap:8px;position:relative}
+.chartbox h4{margin:0 4px;font-weight:500;font-size:13.5px}
+.chartbox svg{width:100%;height:auto;display:block;overflow:visible}
+.chartbox .tip{position:absolute;pointer-events:none;padding:6px 9px;border-radius:10px;background:rgba(24,21,20,.95);border:1px solid var(--line-2);font-size:12px;white-space:nowrap;opacity:0;transition:opacity .15s;font-variant-numeric:tabular-nums}
+.empty{color:var(--muted);font-size:14px;line-height:1.5;text-align:center;padding:24px 8px}
+.live{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center}
+.ringt{width:92px;height:92px}
+.livestats{display:grid;gap:6px}
+.livestats .big{font-size:28px;font-weight:300;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.livestats .sm{font-size:12.5px;color:var(--muted)}
+.level{display:flex;align-items:center;gap:10px}
+.level .circ{width:34px;height:34px;font-size:18px;line-height:1}
+.level span{font-size:13.5px;min-width:74px;text-align:center}
+.slider{display:grid;gap:6px}
+.slider input{width:100%;accent-color:#DDB79C}
+.slider .scale{display:flex;justify-content:space-between;font-size:11px;color:var(--faint)}
+.slider .val{font-size:13.5px;color:var(--text)}
+
+/* ---------- care loop components ---------- */
+.optcards{display:grid;gap:8px}
+.optcard{display:grid;gap:3px;text-align:left;padding:12px 14px;border-radius:18px;border:1px solid var(--line-2);background:rgba(58,52,49,.25);transition:border-color .25s,background .25s}
+.optcard b{font-weight:500;font-size:15px}
+.optcard span{font-size:12.5px;color:var(--muted)}
+.optcard small{font-size:12px;color:var(--faint)}
+.optcard[aria-pressed="true"]{border-color:rgba(228,181,152,.6);background:radial-gradient(120% 140% at 0% 0%,rgba(228,181,152,.16),rgba(58,52,49,.25) 70%)}
+.nowmod{font-size:17px;font-weight:400}
+.seq{display:flex;flex-wrap:wrap;gap:5px}
+.seq span{font-size:11.5px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--faint);transition:all .4s}
+.seq span.on{border-color:rgba(228,181,152,.6);color:var(--text);background:rgba(228,181,152,.12)}
+.checkin{display:grid;gap:8px;padding:12px;border-radius:18px;border:1px solid rgba(228,181,152,.3);background:rgba(228,181,152,.06);animation:rise .5s var(--ease) both}
+.checkin p{margin:0;font-size:14.5px}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.answer{height:46px;border-radius:16px;border:1px solid var(--line-2);background:rgba(58,52,49,.3);font-size:14px}
+.answer:hover{border-color:rgba(228,181,152,.55)}
+.demo{display:grid;grid-template-columns:120px 1fr;gap:12px;align-items:center}
+.demo .fig svg{width:120px;height:auto;display:block}
+.steps3{list-style:none;margin:0;padding:0;display:grid;gap:7px;font-size:12.5px;line-height:1.4;color:var(--muted)}
+.steps3 b{display:block;font-weight:500;color:var(--text);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.custom{display:grid;gap:4px}
+.crow{display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.crow:last-child{border-bottom:0}
+.crow .cname{font-size:14.5px}
+.crow .level{grid-column:1/-1;justify-content:flex-start}
+.crow .level+.level{margin-top:-4px}
+.reasons{padding:12px 16px}
+.reasons ul{margin:6px 0 0;padding-left:18px;font-size:13.5px;line-height:1.5;color:var(--text)}
+.sess .q{grid-column:1;font-size:13px;color:#CFC3BA;font-style:italic;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical}
+.said{display:grid;gap:8px}
+.said blockquote,.doc blockquote{margin:0;padding:10px 14px;border-left:2px solid var(--peach);background:rgba(228,181,152,.06);border-radius:0 14px 14px 0;font-size:14.5px;line-height:1.45;color:#EADFD6}
+.deflist{display:grid;grid-template-columns:minmax(110px,40%) 1fr;gap:8px 14px;margin:0;padding:14px 16px}
+.deflist dt{font-size:12.5px;color:var(--muted)}
+.deflist dd{margin:0;font-size:13.5px;line-height:1.45}
+.doc{border-radius:22px;background:#F3EBE2;color:#211816;padding:20px 18px;display:grid;gap:14px}
+.doc .eyebrow{color:#7A655A}
+.doc .deflist{padding:0}
+.doc .deflist dt{color:#7A655A}
+.doc h4{margin:0 0 8px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;display:flex;justify-content:space-between;gap:8px;border-top:1px solid rgba(33,24,22,.12);padding-top:12px}
+.doc .src{font-weight:500;letter-spacing:.04em;text-transform:none;color:#8C7466;font-size:11.5px}
+.doc ul{margin:0;padding-left:18px;font-size:13.5px;line-height:1.5}
+.doc blockquote{background:rgba(107,83,69,.08);color:#3A2B25}
+.doc .hintx{color:#7A655A;margin:0}
+.copybox{width:100%;min-height:160px;border-radius:14px;background:rgba(58,52,49,.4);color:var(--text);border:1px solid var(--line-2);padding:10px;font:12px/1.5 ui-monospace,monospace}
+.insight b{font-size:15px}
+
+/* ---------- spot control ---------- */
+.spotrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 4px}
+.spotinfo{display:grid;gap:4px;min-width:0}
+.spotinfo b{font-weight:500;font-size:18px;letter-spacing:-.01em}
+.spotinfo span{font-size:12.5px;color:var(--muted)}
+.pad{display:grid;grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px);gap:2px;flex:none}
+.pad button{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line-2);background:rgba(58,52,49,.4);color:var(--text)}
+.pad button:hover,.pad button:active{border-color:rgba(228,181,152,.6);background:rgba(90,72,62,.45)}
+.pad button svg{width:18px;height:18px}
+.pad .up{grid-column:2;grid-row:1}.pad .left{grid-column:1;grid-row:2}.pad .right{grid-column:3;grid-row:2}.pad .down{grid-column:2;grid-row:3}
+.pad .dot{grid-column:2;grid-row:2;place-self:center;width:10px;height:10px;border-radius:50%;background:var(--peach);box-shadow:0 0 10px var(--peach)}
+
+/* ---------- conversation, confirmation, movement ---------- */
+.ask-hint{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
+.talkbig{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.understood{border-radius:20px;padding:14px 16px;background:radial-gradient(120% 140% at 0% 0%,rgba(228,181,152,.14),rgba(40,35,33,.5) 65%);border:1px solid rgba(228,181,152,.22);display:grid;gap:8px}
+.understood p{margin:0;font-size:15.5px;line-height:1.5;font-weight:300}
+.mv{border-radius:20px;background:radial-gradient(90% 80% at 50% 40%,rgba(228,181,152,.08),rgba(20,18,17,.4));border:1px solid var(--line)}
+.mv svg{width:100%;height:auto;display:block;max-height:230px}
+.mvhead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mvphase{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--peach)}
+.mvctl{display:flex;gap:6px}
+.mvctl button{font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--line-2);color:var(--muted)}
+.mvctl button:hover{color:var(--text)}
+.mvsteps{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.mvsteps li{display:grid;grid-template-columns:62px 1fr;gap:8px;font-size:13px;line-height:1.4;color:var(--muted);padding:6px 8px;border-radius:12px;transition:background .3s,color .3s}
+.mvsteps li b{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:500;padding-top:2px}
+.mvsteps li.on{background:rgba(228,181,152,.08);color:var(--text)}
+.mvsteps li.on b{color:var(--peach)}
+.answers.col{grid-template-columns:1fr}
+.mvwrap{display:grid;gap:8px}
+.again{display:grid;grid-template-columns:92px 1fr;gap:12px;align-items:center}
+.again .mini .mv{border-radius:16px}
+.again .mini svg{max-height:96px}
+.againinfo{display:grid;gap:5px}
+.againinfo b{font-weight:400;font-size:14.5px;line-height:1.4}
+.againinfo span{font-size:12.5px;color:var(--peach)}
+.why{margin:0;font-size:14px;line-height:1.5;color:#E6DBD2}
+.whybox{display:grid;gap:6px;padding:12px 14px;border-radius:18px;background:rgba(228,181,152,.06);border:1px solid rgba(228,181,152,.16)}
+.mvline{margin:0;display:flex;gap:10px;align-items:baseline;font-size:14px;line-height:1.4;color:var(--text);min-height:2.8em}
+.mvline .mvphase{flex:none}
+.plan{display:grid;gap:4px}
+.plan .meta{font-size:13px;color:var(--muted)}
+.plan .reason{margin:4px 0 0;font-size:14px;line-height:1.45;color:#E6DBD2}
+.plan .seqline{font-size:12px;color:var(--faint)}
+.alts{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;color:var(--faint)}
+.alts button{font-size:12.5px;color:var(--muted);padding:5px 10px;border-radius:999px;border:1px solid var(--line)}
+.alts button:hover{color:var(--text);border-color:var(--line-2)}
+/* ---------- typography comparison (dev) ---------- */
+.typo-card{border-radius:22px;border:1px solid var(--line);background:rgba(36,32,30,.55);padding:18px 18px 16px;display:grid;gap:10px}
+.typo-card .tc-name{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-family:var(--ui)}
+.typo-card .tc-name b{font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--peach)}
+.typo-card .tc-name span{font-size:11.5px;color:var(--faint);text-align:right}
+.typo-card .t-brand{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--muted)}
+.typo-card .t-q{font-size:27px;font-weight:300;line-height:1.15;letter-spacing:-.015em;margin:0}
+.typo-card .t-title{font-size:20px;font-weight:500;margin:0}
+.typo-card .t-body{font-size:14.5px;line-height:1.5;color:#DCD1C8;margin:0}
+.typo-card .t-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.typo-card .t-btn{height:44px;padding:0 22px;border-radius:22px;background:linear-gradient(180deg,#F6E6D8,#E4C0A6);color:#1A1210;font-weight:500;font-size:15px;border:0}
+.typo-card .t-meta{font-size:12.5px;color:var(--muted)}
+.typo-card .tc-try{justify-self:start;font-family:var(--ui)}
+
+/* ---------- type bar & toast ---------- */
+.typebar{position:absolute;left:8px;right:8px;bottom:8px;z-index:45;display:flex;gap:8px;padding:8px;border-radius:28px;background:rgba(24,21,20,.97);border:1px solid var(--line-2);box-shadow:0 -12px 40px rgba(0,0,0,.5)}
+.typebar.voice{border-color:rgba(228,181,152,.55);box-shadow:0 0 0 4px rgba(228,181,152,.08),0 -12px 40px rgba(0,0,0,.5)}
+.typesug{position:absolute;left:16px;right:16px;bottom:72px;z-index:45;text-align:left;font-size:13px;line-height:1.4;color:#E6DBD2;padding:10px 14px;border-radius:16px;
+  background:rgba(36,32,30,.95);border:1px dashed rgba(228,181,152,.4)}
+.typesug:hover{border-style:solid}
+.typebar input{flex:1;min-width:0;background:transparent;border:0;color:var(--text);font:inherit;font-size:15px;padding:0 10px;outline:none}
+.typebar input::placeholder{color:var(--faint)}
+.typebar .btn{flex:none;height:42px;padding:0 18px}
+.toast{position:absolute;left:50%;top:calc(var(--sb) + 56px);z-index:50;transform:translate(-50%,-6px);opacity:0;pointer-events:none;width:max-content;max-width:calc(100% - 40px);
+  font-size:12.5px;line-height:1.4;padding:9px 14px;border-radius:16px;background:rgba(35,32,31,.96);border:1px solid var(--line-2);transition:all .4s var(--ease)}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.me{position:absolute;top:calc(var(--sb) + 18px);right:18px;z-index:13}
+.hist{position:absolute;top:calc(var(--sb) + 18px);left:18px;z-index:13}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.2s!important}
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="pebA" cx=".36" cy=".3" r=".8"><stop offset="0" stop-color="#FBF1E8"/><stop offset=".45" stop-color="#EDCDB6"/><stop offset=".85" stop-color="#B58B74"/><stop offset="1" stop-color="#8E6A58"/></radialGradient>
+    <radialGradient id="pebB" cx=".4" cy=".32" r=".8"><stop offset="0" stop-color="#F1EEF4"/><stop offset=".5" stop-color="#C3BDD0"/><stop offset="1" stop-color="#6E6A7C"/></radialGradient>
+    <symbol id="pebbles" viewBox="0 0 200 150">
+      <ellipse cx="86" cy="62" rx="60" ry="41" transform="rotate(-17 86 62)" fill="url(#pebA)"/>
+      <ellipse cx="126" cy="92" rx="52" ry="37" transform="rotate(-17 126 92)" fill="url(#pebB)" opacity=".72"/>
+      <ellipse cx="86" cy="62" rx="60" ry="41" transform="rotate(-17 86 62)" fill="none" stroke="#FFF6EE" stroke-opacity=".35" stroke-width="1"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="stage">
+  <aside class="notes" aria-label="About this prototype">
+    <div class="wm"><svg viewBox="0 0 200 150"><use href="#pebbles"/></svg><b>Lofer</b></div>
+    <p class="lede">App prototype of the core care journey. Talk or touch, and both routes land on the same 3D body.</p>
+    <ol class="flow" id="flow">
+      <li>Tell Lofer how you feel</li>
+      <li>Lofer understands &amp; asks</li>
+      <li>Confirm &amp; check movement</li>
+      <li>Suggest care</li>
+      <li>Treat</li>
+      <li>Check again &amp; learn</li>
+    </ol>
+    <div class="try">
+      <p class="eyebrow">Try saying</p>
+      <button class="say">I played tennis yesterday and my right shoulder has felt tight since.</button>
+      <button class="say">Mostly when I lift it above my head.</button>
+      <button class="say">It's actually more towards the back.</button>
+      <button class="say">Yes, that's it.</button>
+      <button class="say">Yes, that's right.</button>
+      <button class="say">It starts pulling about halfway.</button>
+      <button class="say">Keep it gentle, and a bit more heat.</button>
+      <button class="say">That's a little too strong.</button>
+      <button class="say">It definitely feels looser now.</button>
+      <button class="say">My wrist feels weird after working all day.</button>
+    </div>
+    <p class="fine">Voice runs through a mock voice agent: tap the mic and type what you'd say, or tap a phrase here. Drag the body to turn it; tap twice to zoom in.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ghost" id="replay">Replay intro</button><button class="ghost" id="openTypo">Typography candidates</button></div>
+  </aside>
+
+  <div class="device">
+    <div class="app intro" id="app">
+      <div class="statusbar" aria-hidden="true">
+        <span>9:41</span>
+        <span class="icons">
+          <svg viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+          <svg viewBox="0 0 16 12"><path d="M8 11.5 5.6 9a3.4 3.4 0 0 1 4.8 0L8 11.5ZM3.2 6.6a6.8 6.8 0 0 1 9.6 0l-1.3 1.3a5 5 0 0 0-7 0L3.2 6.6ZM.8 4.2a10.2 10.2 0 0 1 14.4 0l-1.3 1.3a8.4 8.4 0 0 0-11.8 0L.8 4.2Z"/></svg>
+          <svg viewBox="0 0 27 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="#F3EBE2" stroke-opacity=".5"/><rect x="2" y="2" width="19" height="8" rx="1.8"/><path d="M24.5 4v4c.8-.3 1.3-1.1 1.3-2s-.5-1.7-1.3-2Z" opacity=".5"/></svg>
+        </span>
+      </div>
+      <div class="homebar" aria-hidden="true"></div>
+      <div class="horizon"></div>
+
+      <canvas id="gl" aria-label="3D body. Drag to turn, tap to choose an area." tabindex="-1"></canvas>
+      <canvas class="orb" id="orb" aria-label="Lofer agent. Tap to talk." role="button" tabindex="0"></canvas>
+
+      <!-- HOME -->
+      <section class="scene" id="home" aria-label="Lofer agent">
+        <svg class="h-logo" viewBox="0 0 200 150" aria-hidden="true"><use href="#pebbles"/></svg>
+        <button class="circ hist" id="openRecords" aria-label="Body history">
+          <svg class="i" viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6M3.5 4.5V9H8"/><path d="M12 7.5V12l3 2"/></svg>
+        </button>
+        <button class="circ me" id="openProfile" aria-label="Profile and settings">
+          <svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.5"/><path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5"/></svg>
+        </button>
+        <div class="h-copy">
+          <p class="greet" id="greet">How is your body feeling today?</p>
+          <p class="ctx" id="ctx" hidden></p>
+        </div>
+        <div class="h-under">
+          <p class="heard" id="heard"></p>
+          <p class="sim" id="sim" hidden>Sample phrase · the preview can't use your mic</p>
+          <div class="talkrow">
+            <button class="tap" id="mic" aria-pressed="false">
+              <svg class="i" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+              Tap to talk
+            </button>
+            <button class="type" id="kbd">or type</button>
+          </div>
+        </div>
+        <button class="route" id="touch">
+          <span class="fig"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="4.2" r="2"/><path d="M8 8.2c1.2-.5 2.6-.8 4-.8s2.8.3 4 .8M9.3 8.2 8.6 14M14.7 8.2l.7 5.8M10.2 13.5 9.8 21M13.8 13.5l.4 7.5M10 8v5.5h4V8"/></svg></span>
+          <span><b>Or show me on your body</b><small>Tap where it’s bothering you</small></span>
+          <svg class="i chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </section>
+
+      <!-- BODY -->
+      <section class="scene" id="bodyScene" aria-label="Body map">
+        <!-- ONE navigation control: ← goes back one step. Breadcrumbs jump between body levels. -->
+        <div class="nav">
+          <button class="circ" id="back" aria-label="Back">
+            <svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+          </button>
+          <nav class="trail" id="trail" aria-label="Body level"></nav>
+        </div>
+        <!-- INFORMATION ZONE: Lofer's line sits on its own surface, never over body detail -->
+        <div class="dock" id="dock">
+          <div class="dock-text">
+            <p class="dmsg" id="dmsg">Show me where it's bothering you.</p>
+            <p class="heard" id="dheard"></p>
+          </div>
+        </div>
+        <!-- BODY ZONE tools: these move the camera only, never navigate -->
+        <div class="bodytools" id="bodytools">
+          <div class="views" id="views" role="group" aria-label="Turn the body" hidden>
+            <button data-v="front">Front</button><button data-v="back">Back</button><button data-v="inner">Inner</button><button data-v="outer">Outer</button>
+          </div>
+          <button class="resetpill" id="resetView" hidden>↻ Reset view</button>
+        </div>
+        <!-- Voice bar: re-attached to the bottom of the sheet on every render (see sheet()). The docked orb floats over #orbSlot. -->
+        <div class="voicebar" id="voicebar">
+          <button class="vb-side" id="dkbd" aria-label="Type instead">
+            <svg class="i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>
+            Type
+          </button>
+          <button class="vb-orb" id="dmic" aria-label="Talk" aria-pressed="false"></button>
+          <span class="vb-side vb-hint" id="vbHint">Tap to talk</span>
+        </div>
+        <div class="tagpin" id="tagpin"><i></i><span></span></div>
+        <p class="hint3d" id="hint3d">Drag to turn · tap twice to zoom in</p>
+        <p class="loading" id="loading" hidden>Preparing your body model…</p>
+        <div class="sheet" id="sheet" aria-live="polite"></div>
+      </section>
+
+      <!-- PROFILE / SETTINGS -->
+      <section class="scene page" id="profile" aria-label="Profile">
+        <header class="pnav"><button class="circ" data-back aria-label="Back"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="pnav-t">Profile</span><span></span></header>
+        <div class="pscroll" id="profileBody"></div>
+      </section>
+
+      <!-- BODY HISTORY (Care Record) -->
+      <section class="scene page" id="records" aria-label="Body history">
+        <header class="pnav"><button class="circ" data-back aria-label="Back"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="pnav-t">Body history</span><span></span></header>
+        <div class="pscroll" id="recordsBody"></div>
+      </section>
+
+      <!-- ONE EPISODE -->
+      <section class="scene page" id="record" aria-label="Episode">
+        <header class="pnav"><button class="circ" data-back aria-label="Back"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="pnav-t">Episode</span><span></span></header>
+        <div class="pscroll" id="recordBody"></div>
+      </section>
+
+      <!-- TYPOGRAPHY COMPARISON (temporary development screen, #typography) -->
+      <section class="scene page" id="typography" aria-label="Typography candidates">
+        <header class="pnav"><button class="circ" data-back aria-label="Back"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="pnav-t">Typography</span><span></span></header>
+        <div class="pscroll" id="typographyBody"></div>
+      </section>
+
+      <!-- CARE SUMMARY FOR A PHYSIOTHERAPIST -->
+      <section class="scene page" id="report" aria-label="Care summary">
+        <header class="pnav"><button class="circ" data-back aria-label="Back"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="pnav-t">Care summary</span><span></span></header>
+        <div class="pscroll" id="reportBody"></div>
+      </section>
+
+      <button class="typesug" id="typesug" type="button" hidden></button>
+      <form class="typebar" id="typebar" hidden>
+        <input id="typein" type="text" autocomplete="off" placeholder="e.g. the back of my left arm aches" aria-label="Describe what's bothering you">
+        <button class="btn primary" type="submit">Send</button>
+        <button class="circ" type="button" id="typeclose" aria-label="Close">
+          <svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </form>
+      <div class="toast" id="toast" role="status"></div>
+
+      <div class="splash" id="splash">
+        <div class="lockup">
+          <svg class="peb" viewBox="0 0 200 150" aria-hidden="true"><use href="#pebbles"/></svg>
+          <div class="word">Lofer</div>
+          <div class="tag">MOVE&nbsp; RECOVER&nbsp; LIVE BETTER</div>
+        </div>
+      </div>
+      <canvas class="fx" id="fx"></canvas>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script src="geo.js"></script>
+<!-- Lofer layers, in dependency order (see the architecture note in each file) -->
+<script src="anatomy.js"></script>   <!-- BODY MODEL: named areas -->
+<script src="symptom.js"></script>   <!-- SYMPTOM / CONTEXT MODEL: words → structured fields -->
+<script src="assessment.js"></script><!-- ASSESSMENT STATE: what's known, what's missing, the one next question -->
+<script src="safety.js"></script>    <!-- SAFETY LAYER: triage + validates every command -->
+<script src="engine.js"></script>    <!-- CARE ENGINE: suggest, adjust, reassess -->
+<script src="device.js"></script>    <!-- DEVICE LAYER: simulated patches -->
+<script src="memory.js"></script>    <!-- BODY MEMORY: episodes, insights, physio summary -->
+<script src="movement.js"></script>  <!-- MOVEMENT CHECKS: animated demonstrations -->
+<script src="voice.js"></script>     <!-- VOICE AGENT: provider-independent (MockVoiceAgent for now) -->
+<script>
+(() => {
+'use strict';
+/* Architecture: SCENES holds the top-level screens. History, Body Memory,
+   device and profile become new scenes reached from the profile button;
+   the care journey below does not need to change for them. */
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const hx = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const wait = ms => new Promise(r => setTimeout(r, RM ? Math.min(ms, 120) : ms));
+const lerp = (a, b, k) => a + (b - a) * k;
+
+/* Body model lives in anatomy.js */
+const { N, SIDES, isLeaf, leavesOf, LEAVES, LI, pathTo, lca, short, groupOf, sideOf } = Lofer.Anatomy;
+const { Symptom, Safety, Engine, Device, Memory, Movement, Assessment, Voice } = Lofer;
+let toastT;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg;
+  t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200);
+}
+
+/* ================= state ================= */
+// flow = the current care-loop episode (see CARE LOOP); care = the confirmed area.
+const state = { scene: 'splash', focus: 'body', cand: null, sel: null, lit: [], pendingSide: null, ctx: {}, care: null, hover: null, flow: null };
+const P = makePrims();
+
+/* ================= 3D ================= */
+const G = { ok: false, ready: false };
+const glCanvas = $('#gl');
+let renderer, scene, camera, skin, skinMat, depthMesh, marker, ring, dot, raycaster;
+const STATS = {};
+let POS, NOR, REG;
+const uTarget = new Float32Array(128), uDisp = new Float32Array(128);
+const cam = { th: .38, ph: .06, d: 5.2, t: null }, camT = { th: .38, ph: .06, d: 3.4, t: null };
+const PEACH = [0xE4 / 255, 0xB5 / 255, 0x98 / 255];
+
+try {
+  if (!window.THREE) throw new Error('three missing');
+  renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+  renderer.setClearColor(0x000000, 0);
+  renderer.localClippingEnabled = true;   // used by the "Inner" limb view
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(26, 1, .02, 30);
+  cam.t = new THREE.Vector3(0, .9, 0); camT.t = cam.t.clone();
+  raycaster = new THREE.Raycaster();
+  G.ok = true;
+} catch (e) { G.ok = false; }
+
+function buildBones() {
+  const mat = new THREE.MeshBasicMaterial({ color: 0x3E3029 });   // kept dark: a hint of structure, never the focus
+  const grp = new THREE.Group();
+  const bone = (a, b, r) => {
+    const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A);
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r * .85, d.length(), 8), mat);
+    m.position.copy(A).add(B).multiplyScalar(.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+    grp.add(m);
+  };
+  const ball = (c, r) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), mat); m.position.set(...c); grp.add(m); };
+  for (const x of [1, -1]) {
+    bone([x * .19, 1.345, 0], [x * .262, 1.085, -.005], .011);
+    bone([x * .262, 1.08, -.005], [x * .3, .86, .02], .008); bone([x * .272, 1.075, -.01], [x * .315, .862, .012], .007);
+    bone([x * .09, .93, 0], [x * .1, .535, .005], .014);
+    bone([x * .1, .47, .005], [x * .104, .09, -.01], .011); bone([x * .118, .46, -.012], [x * .122, .1, -.02], .006);
+    bone([x * .02, 1.415, .045], [x * .17, 1.405, .005], .006);
+    ball([x * .09, .935, 0], .02); ball([x * .1, .5, .01], .018); ball([x * .19, 1.36, 0], .022);
+  }
+  for (let y = .98; y < 1.58; y += .028) ball([0, y, -.045 + Math.max(0, y - 1.35) * .1], .009);
+  for (let i = 0; i < 6; i++) {
+    const t = new THREE.Mesh(new THREE.TorusGeometry(.105 - Math.abs(i - 2) * .006, .0035, 6, 40), mat);
+    t.rotation.x = Math.PI / 2 + .25; t.scale.set(1.05, .78, 1); t.position.set(0, 1.34 - i * .035, -.01); grp.add(t);
+  }
+  const pel = new THREE.Mesh(new THREE.TorusGeometry(.11, .008, 8, 40), mat);
+  pel.rotation.x = Math.PI / 2 - .2; pel.scale.set(1.1, .7, 1); pel.position.set(0, .98, 0); grp.add(pel);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(.066, 16, 12), mat); skull.position.set(0, 1.655, 0); skull.scale.set(1, 1.15, 1.1); grp.add(skull);
+  grp.renderOrder = 0; grp.traverse(o => o.renderOrder = 0);
+  return grp;
+}
+
+const VERT = `
+#include <clipping_planes_pars_vertex>
+attribute float region;
+uniform float uState[128];
+varying vec3 vN; varying vec3 vW; varying float vS;
+void main(){
+  vS = uState[int(region + .5)];
+  vec4 w = modelMatrix * vec4(position, 1.);
+  vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal);
+  // Same maths as three.js's own materials, so this pass lands on exactly the same
+  // depth as the invisible depth pass (a mismatch caused dark speckles on the skin).
+  vec4 mvPosition = modelViewMatrix * vec4(position, 1.);
+  gl_Position = projectionMatrix * mvPosition;
+  #include <clipping_planes_vertex>
+}`;
+const FRAG = `
+#include <clipping_planes_pars_fragment>
+uniform float uDetail;
+uniform vec3 cDeep; uniform vec3 cWarm; uniform vec3 cCream;
+uniform float uTime; uniform vec3 uPoint; uniform float uPointOn; uniform float uScanY; uniform float uScanOn;
+varying vec3 vN; varying vec3 vW; varying float vS;
+void main(){
+  #include <clipping_planes_fragment>
+  // Glass shading: only front faces reach here (see FrontSide below), so the
+  // normal always faces the camera and nothing flips from pixel to pixel.
+  vec3 N = normalize(vN); vec3 V = normalize(cameraPosition - vW);
+  float ndv = clamp(dot(N, V), 0., 1.);
+  float fres = pow(1. - ndv, 3.);                        // soft rim glow
+  vec3 L = normalize(vec3(-.45, .75, .6));
+  float dif = clamp(dot(N, L), 0., 1.) * .5 + .5;        // wrapped light, no hard terminator
+  vec3 H = normalize(L + V);
+  float spec = pow(clamp(dot(N, H), 0., 1.), 48.);       // glossy highlight
+  float sheen = smoothstep(-.2, .9, N.y) * .5 + .5;      // brighter from above, like the orb
+  vec3 col = mix(cDeep, cWarm, .12 + .3 * dif * sheen);
+  col += cWarm * fres * .85;
+  col += cCream * spec * .35;
+  // Area states arrive as one smooth number per vertex (see updStates).
+  float dim = 1. - smoothstep(.3, .8, vS);
+  float alt = smoothstep(1.1, 1.2, vS) * (1. - smoothstep(1.4, 1.5, vS));
+  float hov = smoothstep(1.45, 1.65, vS) * (1. - smoothstep(1.8, 1.95, vS));
+  float lit = smoothstep(1.8, 2.1, vS) * (1. - smoothstep(2.6, 2.9, vS));
+  float sel = smoothstep(2.6, 2.95, vS);
+  col *= 1. - dim * (.55 + .2 * uDetail);   // deeper zoom → surroundings recede a little more
+  col += cWarm * alt * .05;
+  col += cWarm * hov * .2;
+  float pulse = .82 + .18 * sin(uTime * 2.);
+  col += mix(cWarm, cCream, .35) * lit * .4 * pulse;
+  col += mix(cWarm, cCream, .6) * sel * .38;
+  float d = distance(vW, uPoint);
+  col += cCream * uPointOn * (exp(-d * d / (2. * .016 * .016)) * .8 + exp(-d * d / (2. * .05 * .05)) * .25);
+  float sd = vW.y - uScanY;
+  col += cWarm * uScanOn * exp(-sd * sd / .0012) * .8;
+  float a = .34 + fres * .5 + spec * .2 + (lit + sel) * .2 - dim * .14;
+  gl_FragColor = vec4(col, clamp(a, 0., .95));
+}`;
+
+function initScene(m) {
+  POS = m.pos; NOR = m.nor; REG = m.reg;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(m.pos, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(m.nor, 3));
+  geo.setAttribute('region', new THREE.BufferAttribute(m.reg, 1));
+  geo.setIndex(new THREE.BufferAttribute(m.idx, 1));
+  geo.computeBoundingSphere(); geo.computeBoundingBox();
+  boneGroup = buildBones(); scene.add(boneGroup);
+  // Pass 1 writes depth only; pass 2 draws the glass skin on exactly the same
+  // front faces, so you see one clean layer of skin with the skeleton behind it.
+  depthMesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.FrontSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
+  depthMesh.renderOrder = 1; scene.add(depthMesh);
+  skinMat = new THREE.ShaderMaterial({
+    vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, side: THREE.FrontSide, clipping: true,
+    uniforms: {
+      uState: { value: uDisp }, cDeep: { value: new THREE.Color(0x2A1E19) }, cWarm: { value: new THREE.Color(0xE4B598) }, cCream: { value: new THREE.Color(0xF6ECE2) },
+      uTime: { value: 0 }, uPoint: { value: new THREE.Vector3(0, -9, 0) }, uPointOn: { value: 0 }, uScanY: { value: -1 }, uScanOn: { value: 0 }, uDetail: { value: 0 }
+    }
+  });
+  skin = new THREE.Mesh(geo, skinMat); skin.renderOrder = 2; scene.add(skin);
+
+  const fc = document.createElement('canvas'); fc.width = fc.height = 128;
+  const fx = fc.getContext('2d'), gr = fx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(228,181,152,.32)'); gr.addColorStop(1, 'rgba(228,181,152,0)');
+  fx.fillStyle = gr; fx.fillRect(0, 0, 128, 128);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(fc), transparent: true, depthWrite: false }));
+  floor.rotation.x = -Math.PI / 2; floor.position.y = -.004; scene.add(floor);
+
+  marker = new THREE.Group();
+  dot = new THREE.Mesh(new THREE.SphereGeometry(.0055, 14, 10), new THREE.MeshBasicMaterial({ color: 0xFFF6EE, depthTest: false }));
+  ring = new THREE.Mesh(new THREE.RingGeometry(.011, .0135, 48), new THREE.MeshBasicMaterial({ color: 0xFFF1E4, transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
+  marker.add(dot, ring); marker.visible = false; marker.traverse(o => o.renderOrder = 3); scene.add(marker);
+
+  // per-area statistics for framing the camera
+  const acc = LEAVES.map(() => ({ n: 0, s: [0, 0, 0], nn: [0, 0, 0], mn: [9, 9, 9], mx: [-9, -9, -9] }));
+  const V = POS.length / 3;
+  for (let i = 0; i < V; i++) {
+    const a = acc[REG[i]];
+    a.n++;
+    for (let k = 0; k < 3; k++) { const v = POS[i * 3 + k]; a.s[k] += v; a.nn[k] += NOR[i * 3 + k]; a.mn[k] = Math.min(a.mn[k], v); a.mx[k] = Math.max(a.mx[k], v); }
+  }
+  const stat = id => {
+    const ls = leavesOf(id).map(l => acc[LI[l]]).filter(a => a.n);
+    if (!ls.length) return null;
+    const mn = [9, 9, 9], mx = [-9, -9, -9], nn = [0, 0, 0]; let n = 0;
+    for (const a of ls) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], a.mn[k]); mx[k] = Math.max(mx[k], a.mx[k]); nn[k] += a.nn[k]; }
+    for (const a of ls) n += a.n;
+    const c = new THREE.Vector3((mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2);
+    const r = Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) / 2;
+    return { c, r, n: new THREE.Vector3(nn[0] / n, nn[1] / n, nn[2] / n), count: n };
+  };
+  for (const id in N) STATS[id] = stat(id);
+  G.ready = true; readyResolve();
+  $('#loading').hidden = true;
+  if (state.scene === 'body') { frame(state.focus); refresh(); }
+}
+
+function startMesh() {
+  if (!G.ok) return;
+  const B = [-.4, -.03, -.2, .4, 1.78, .2], h = .0075; // finer grid = smoother surface
+  const run = () => initScene(buildMesh(P, B, h, LI));
+  try {
+    const src = LOFER_GEO_FNS.map(f => f.toString()).join('\n') +
+      `\nonmessage=e=>{const r=buildMesh(e.data.P,e.data.B,e.data.h,e.data.LI);postMessage(r,[r.pos.buffer,r.nor.buffer,r.reg.buffer,r.idx.buffer]);};`;
+    const w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+    w.onmessage = e => { initScene(e.data); w.terminate(); };
+    w.onerror = () => { w.terminate(); setTimeout(run, 30); };
+    w.postMessage({ P, B, h, LI });
+  } catch (e) { setTimeout(run, 30); }
+}
+
+/* ----- camera ----- */
+const kidsOf = id => N[id].children.filter(c => !G.ready || STATS[c]);
+const sheetEl = $('#sheet');
+/* LAYOUT ZONES. The body lives in the space between the information zone (the
+   dock, measured) and the action zone (the sheet, measured), so text never sits
+   over anatomy. If that space gets too small the body moves behind a solid sheet;
+   fonts are never shrunk to make room. Each step also says how dominant the body
+   should be (see BODY_ROLE). */
+const dockEl = $('#dock');
+const BODY_ROLE = { select: 1, locate: 1, treat: 1, clarify: 1.35, confirm: 1.25, correct: 1.25, movement: 1.6, suggest: 1.7, custom: 1.7, reassess: 1.3, result: 1.3, stop: 1.6 };
+function bodyRole() { const st = state.flow?.step; return !st || st === 'listening' ? 'select' : st === 'paused' ? 'treat' : st; }
+let behind = false;
+function band() {
+  const H = glCanvas.clientHeight || 844, W = glCanvas.clientWidth || 390;
+  const a = app.getBoundingClientRect(), d = dockEl.getBoundingClientRect();
+  const top = (d.height ? d.bottom - a.top : 120) + 10, bot = (sheetEl.offsetHeight || 220) + 18;
+  const Hv = H - top - bot;
+  const nowBehind = Hv < 170;
+  if (nowBehind !== behind) { behind = nowBehind; sheetEl.classList.toggle('solid', behind); }
+  if (behind) return { W, H, top: 0, bot: 0, Hv: H, behind: true };   // body sits behind the solid card
+  return { W, H, top, bot, Hv, behind: false };
+}
+function nearestAngle(from, to) { while (to - from > Math.PI) to -= 2 * Math.PI; while (to - from < -Math.PI) to += 2 * Math.PI; return to; }
+function thetaFor(id) {
+  const st = STATS[id]; if (!st) return null;
+  const n = st.n, len = Math.hypot(n.x, n.z);
+  if (len < .28) return null;
+  const nx = n.x / len, nz = n.z / len;
+  let a = Math.atan2(nx, nz);
+  if (nz < -.45) { let d = a - Math.PI; while (d < -Math.PI) d += 2 * Math.PI; while (d > Math.PI) d -= 2 * Math.PI; a = Math.PI + clamp(d, -.6, .6); }
+  else if (nx * Math.sign(st.c.x || 1) > 0) a = clamp(a, -1.25, 1.25);
+  else a = clamp(a, -.45, .45);
+  return a;
+}
+function thetaForNormal(n, p) {
+  const len = Math.hypot(n.x, n.z); if (len < .2) return null;
+  const nx = n.x / len, nz = n.z / len; let a = Math.atan2(nx, nz);
+  if (nz < -.45) return a;
+  if (nx * Math.sign(p.x || 1) > 0) return clamp(a, -1.3, 1.3);
+  return clamp(a, -.5, .5);
+}
+function frame(id, { turn = true } = {}) {
+  if (!G.ready) return;
+  const st = STATS[id]; if (!st) return;
+  const b = band(), tv = Math.tan(camera.fov * Math.PI / 360);
+  // While choosing a spot, zoom right in. Afterwards keep some surrounding body in view for orientation.
+  const r = Math.max(st.r, ['select', 'locate'].includes(bodyRole()) ? .07 : .26);
+  const dv = r * 1.12 / (tv * b.Hv / b.H), dh = r * 1.12 / (tv * b.W / b.H);
+  camT.t.copy(st.c); camT.d = Math.max(dv, dh, .3) * (BODY_ROLE[bodyRole()] || 1);
+  if (turn) {
+    const th = id === 'body' ? .38 : thetaFor(id);
+    if (th != null) camT.th = nearestAngle(cam.th, th);
+  }
+  camT.ph = st.n.y > .45 ? .5 : /footg|_heel|_sole|_foottop/.test(id) ? .32 : .07;
+  if (turn) camHome = { th: camT.th, ph: camT.ph, d: camT.d }; // what the reset button returns to
+}
+let camHome = { th: .38, ph: .07, d: 3.4 };
+// ↻ Reset view: camera, zoom and orientation only. It never navigates.
+function resetView() {
+  if (!G.ready) return;
+  setLimbView(null);
+  frame(state.focus, { turn: false });
+  camT.th = nearestAngle(cam.th, camHome.th); camT.ph = camHome.ph; camT.d = camHome.d;
+}
+// Front / Back / Inner / Outer for an arm or leg. "Inner" cuts away the torso
+// and the other limb so the inside of the limb can be seen and tapped.
+let limbView = null, clipPlane = null, boneGroup = null;
+const limbOf = id => pathTo(id).find(p => /^[rl]_(arm|leg)$/.test(p)) || null;
+function setLimbView(v) {
+  limbView = v;
+  const limb = v && limbOf(state.focus);
+  clipPlane = null;
+  if (limb && v === 'inner') {
+    const sx = limb[0] === 'l' ? 1 : -1, keep = /arm/.test(limb) ? .14 : .02;
+    clipPlane = new THREE.Plane(new THREE.Vector3(sx, 0, 0), -keep);
+  }
+  const planes = clipPlane ? [clipPlane] : [];
+  [skin, depthMesh].forEach(m => m && (m.material.clippingPlanes = planes));
+  boneGroup && boneGroup.traverse(o => { if (o.material) o.material.clippingPlanes = planes; });
+  if (limb && v) {
+    const sx = limb[0] === 'l' ? 1 : -1;
+    camT.th = nearestAngle(cam.th, { front: 0, back: Math.PI, outer: sx * Math.PI / 2, inner: -sx * Math.PI / 2 }[v]); camT.ph = .06;
+  }
+  document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+}
+function updateBodyTools(b) {
+  const tools = $('#bodytools'); if (!tools) return;
+  tools.style.top = (b.behind ? 120 : b.top + 4) + 'px';
+  const limb = limbOf(state.focus);
+  $('#views').hidden = !limb || b.behind || (state.flow && !['locate', 'select', 'listening', 'clarify'].includes(state.flow.step));
+  const off = Math.abs(nearestAngle(camHome.th, cam.th) - camHome.th) > .3 || Math.abs(camT.d / camHome.d - 1) > .15 || !!limbView;
+  $('#resetView').hidden = !off || b.behind;
+}
+function faceNormal(n, p) {
+  const th = thetaForNormal(n, p);
+  const camDir = new THREE.Vector3().subVectors(camera.position, p).normalize();
+  if (th != null && n.dot(camDir) < .35) camT.th = nearestAngle(cam.th, th);
+}
+function turnCam(where) {
+  const t = { front: 0, back: Math.PI, side: Math.PI / 2, toggle: cam.th + Math.PI }[where];
+  camT.th = nearestAngle(cam.th, t);
+}
+
+/* ----- surface helpers ----- */
+function surf(p) {
+  let x = p.x, y = p.y, z = p.z;
+  for (let i = 0; i < 10; i++) { const d = sdf(P, x, y, z); if (Math.abs(d) < 1e-4) break; const g = grad(P, x, y, z); x -= g[0] * d; y -= g[1] * d; z -= g[2] * d; }
+  const g = grad(P, x, y, z);
+  return { p: new THREE.Vector3(x, y, z), n: new THREE.Vector3(g[0], g[1], g[2]) };
+}
+const classifyAt = s => classify(P, s.p.x, s.p.y, s.p.z, s.n.x, s.n.y, s.n.z);
+function repPoint(id) {
+  const st = STATS[id]; if (!st || !POS) return null;
+  const set = new Set(leavesOf(id).map(l => LI[l]));
+  const camDir = new THREE.Vector3().subVectors(camera.position, st.c).normalize();
+  let best = -1, bs = 1e9;
+  for (let i = 0; i < REG.length; i++) {
+    if (!set.has(REG[i])) continue;
+    const dx = POS[i * 3] - st.c.x, dy = POS[i * 3 + 1] - st.c.y, dz = POS[i * 3 + 2] - st.c.z;
+    const face = NOR[i * 3] * camDir.x + NOR[i * 3 + 1] * camDir.y + NOR[i * 3 + 2] * camDir.z;
+    const sc = Math.hypot(dx, dy, dz) - face * st.r * .5;
+    if (sc < bs) { bs = sc; best = i; }
+  }
+  if (best < 0) return null;
+  return { p: new THREE.Vector3(POS[best * 3], POS[best * 3 + 1], POS[best * 3 + 2]), n: new THREE.Vector3(NOR[best * 3], NOR[best * 3 + 1], NOR[best * 3 + 2]) };
+}
+function leafRep(id) {
+  const st = STATS[id]; if (!st || !POS) return null;
+  const k = LI[id]; let best = -1, bs = 1e9;
+  for (let i = 0; i < REG.length; i++) {
+    if (REG[i] !== k) continue;
+    const d = Math.hypot(POS[i * 3] - st.c.x, POS[i * 3 + 1] - st.c.y, POS[i * 3 + 2] - st.c.z);
+    if (d < bs) { bs = d; best = i; }
+  }
+  return best < 0 ? null : { p: new THREE.Vector3(POS[best * 3], POS[best * 3 + 1], POS[best * 3 + 2]), n: new THREE.Vector3(NOR[best * 3], NOR[best * 3 + 1], NOR[best * 3 + 2]) };
+}
+
+/* ----- highlight states ----- */
+function updStates() {
+  uTarget.fill(0);
+  const kids = kidsOf(state.focus);
+  kids.forEach((c, i) => leavesOf(c).forEach(l => uTarget[LI[l]] = i % 2 ? 1.28 : 1));
+  if (state.hover && !state.cand) leavesOf(state.hover).forEach(l => uTarget[LI[l]] = 1.62);
+  for (const id of state.lit) leavesOf(id).forEach(l => uTarget[LI[l]] = 2.2);
+  if (state.cand) leavesOf(state.cand).forEach(l => uTarget[LI[l]] = 2.2);
+  if (state.care && !state.care.point) leavesOf(state.care.id).forEach(l => uTarget[LI[l]] = 2.2);
+  if (state.sel) uTarget[LI[state.sel.id]] = 3;
+  // During a session the treated area breathes (uses the pulsing "lit" band).
+  if (state.care) {
+    const treating = state.flow && (state.flow.step === 'treat' || state.flow.step === 'paused');
+    for (const id of [state.care.id, state.care.pair].filter(Boolean)) {
+      if (!state.care.point || treating) leavesOf(id).forEach(l => uTarget[LI[l]] = treating ? 2.3 : 2.2);
+    }
+  }
+}
+let scanT0 = -1;
+const scanSweep = () => { scanT0 = performance.now(); };
+
+/* ----- input on the 3D view ----- */
+let down = null, dragging = false, lastHover = 0;
+function hit(e) {
+  if (!G.ready) return null;
+  const r = glCanvas.getBoundingClientRect();
+  const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  // Ignore parts cut away by the "Inner" view.
+  const h = raycaster.intersectObject(depthMesh, false).find(x => !clipPlane || clipPlane.distanceToPoint(x.point) >= 0);
+  if (!h) return null;
+  const g = grad(P, h.point.x, h.point.y, h.point.z);
+  return { p: h.point.clone(), n: new THREE.Vector3(g[0], g[1], g[2]) };
+}
+glCanvas.addEventListener('pointerdown', e => {
+  if (state.scene !== 'body') return;
+  down = { x: e.clientX, y: e.clientY, th: camT.th, ph: camT.ph };
+  glCanvas.setPointerCapture(e.pointerId);
+});
+glCanvas.addEventListener('pointermove', e => {
+  if (down) {
+    const dx = e.clientX - down.x, dy = e.clientY - down.y;
+    if (!dragging && Math.hypot(dx, dy) > 7) dragging = true;
+    if (dragging) {
+      camT.th = down.th - dx * .009; cam.th = lerp(cam.th, camT.th, .5);
+      camT.ph = clamp(down.ph + dy * .004, -.35, .75);
+      $('#hint3d').style.opacity = 0;
+    }
+    return;
+  }
+  if (e.pointerType !== 'mouse' || state.scene !== 'body') return;
+  const now = performance.now(); if (now - lastHover < 70) return; lastHover = now;
+  const h = hit(e); let hv = null;
+  if (h) {
+    const L = classifyAt(h), p = pathTo(L), i = p.indexOf(state.focus);
+    if (i >= 0 && p[i + 1]) hv = p[i + 1];
+  }
+  if (hv !== state.hover) { state.hover = hv; updStates(); }
+});
+glCanvas.addEventListener('pointerup', e => {
+  if (!down) return;
+  const wasDrag = dragging; down = null; dragging = false;
+  if (!wasDrag) onTap(e);
+});
+glCanvas.addEventListener('pointercancel', () => { down = null; dragging = false; });
+glCanvas.addEventListener('pointerleave', () => { if (state.hover) { state.hover = null; updStates(); } });
+glCanvas.addEventListener('wheel', e => { e.preventDefault(); camT.d = clamp(camT.d * (1 + e.deltaY * .001), .25, 6); }, { passive: false });
+
+function onTap(e) {
+  if (state.scene !== 'body') return;
+  const F = state.flow;
+  if (F && !['locate', 'listening', 'clarify', 'confirm', 'correct'].includes(F.step)) return;   // no spot changes mid-treatment
+  const h = hit(e); if (!h) return;
+  // A spot already exists (or the place is being checked) → the tap simply moves the spot there.
+  if (state.sel || state.care || (F && ['clarify', 'confirm', 'correct'].includes(F.step))) return moveSpotTo(h);
+  const L = classifyAt(h), p = pathTo(L);
+  const base = p.includes(state.focus) ? state.focus : lca(state.focus, L);
+  if (base !== state.focus) { goFocus(base, { silent: true }); }
+  const next = p[p.indexOf(base) + 1]; if (!next) return;
+  if (next === L) return selectLeaf(L, h, { say: 'tap' });
+  if (state.cand === next) return zoomIn(next);
+  preview(next);
+}
+
+// Move the selected spot to a surface point. If the place was already confirmed,
+// the understanding follows (the summary on screen updates with it).
+function moveSpotTo(s) {
+  const L = classifyAt(s), F = state.flow, wasConfirmed = !!state.care;
+  selectLeaf(L, s, { keepFlow: true, keepCam: true });
+  if (wasConfirmed) state.care = { id: L, point: true };
+  if (F) {
+    Assessment.setRegion(F.A, L, { confirmed: wasConfirmed });
+    if (F.step === 'confirm') { refresh(); return agentSay(confirmLine()); }
+  }
+  refresh();
+  if (!F || ['locate', 'listening'].includes(F.step)) agentSay(`Here? ${cap(N[L].say)}.`);
+}
+// ↑ ↓ ← → pad: nudges the spot in SCREEN directions, so it always moves the way the user sees it.
+function nudgeSpot(dx, dy) {
+  if (!state.sel || !G.ready) return;
+  const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+  const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+  const step = .022;
+  const q = state.sel.p.clone().addScaledVector(right, dx * step).addScaledVector(up, dy * step);
+  moveSpotTo(surf(q));
+}
+
+/* ================= care-journey actions ================= */
+function refresh() {
+  updStates(); renderNav(); renderSheet(); updateStep();
+  if (state.scene === 'body' && G.ready && !dragging) frame(state.focus, { turn: false });   // body size follows its role in this step
+}
+function goFocus(id, { silent = false, turn = true } = {}) {
+  Object.assign(state, { focus: id, cand: null, sel: null, lit: [], pendingSide: null, care: null, hover: null });
+  frame(id, { turn }); refresh();
+  if (silent) return;
+  if (id === 'body') agentSay("Show me where. Tap the area that's bothering you.");
+  else agentSay(`${N[id].label}. Where exactly?`);
+}
+function preview(id) {
+  Object.assign(state, { cand: id, sel: null, lit: [], pendingSide: null, hover: null });
+  const th = thetaFor(id);
+  const st = STATS[id];
+  if (th != null && st) {
+    const camDir = new THREE.Vector3().subVectors(camera.position, st.c).normalize();
+    if (st.n.clone().normalize().dot(camDir) < .3) camT.th = nearestAngle(cam.th, th);
+  }
+  refresh();
+  agentSay(isLeaf(id) ? `${cap(N[id].say)}?` : `${N[id].label}. Zoom in, or choose the whole area.`);
+}
+function zoomIn(id) { goFocus(id); }
+function selectLeaf(id, s, { say, keepCam = false, keepFlow = false } = {}) {
+  const parent = N[id].parent;
+  const changed = parent !== state.focus;
+  Object.assign(state, { sel: { id, p: s.p.clone(), n: s.n.clone() }, cand: null, lit: [], pendingSide: null, hover: null, focus: parent });
+  if (!keepFlow) state.care = null;          // the conversation (state.flow) carries on while the spot changes
+  if (changed) frame(parent, { turn: false });
+  if (!keepCam) faceNormal(s.n, s.p);
+  refresh();
+  if (say === 'tap') agentSay(`${cap(N[id].say)}. Is this the spot?`);
+  else if (say) agentSay(say);
+}
+// Region confirmed on the body → back to the conversation (see CARE LOOP).
+function confirmSel() {
+  if (!state.sel) return;
+  state.care = { id: state.sel.id, point: true };
+  regionConfirmed(state.sel.id);
+}
+function confirmArea(id) {
+  Object.assign(state, { care: { id, point: false }, cand: null, sel: null, lit: [], pendingSide: null });
+  if (id !== state.focus && !isLeaf(id)) frame(id);
+  regionConfirmed(id);
+}
+function confirmBoth(tmpl) {
+  const a = tmpl.replace('{s}', 'r'), b = tmpl.replace('{s}', 'l');
+  Object.assign(state, { care: { id: a, pair: b, point: false }, cand: null, sel: null, lit: [a, b], pendingSide: null });
+  regionConfirmed(a, { pair: b });
+}
+// ← always means "back one step".
+function goBack() {
+  const F = state.flow;
+  if (F && !['locate', 'listening'].includes(F.step)) {
+    if (F.step === 'treat' || F.step === 'paused') return endRun();                 // leaving mid-session ends it, then asks how it feels
+    if (F.step === 'outcome' || F.step === 'stop') return goHome();
+    if (F.step === 'reassess' || (F.step === 'movement' && F.mPhase === 'after')) return;   // answer first, so the session is recorded
+    const prev = F.trail.pop() || 'locate';
+    F.step = prev;
+    if (prev === 'locate' || prev === 'listening') { state.care = null; F.A.regionConfirmed = false; }
+    refresh();
+    return agentSay(prev === 'clarify' ? F.q.text : prev === 'confirm' ? confirmLine() : prev === 'movement' ? F.testDef.intro : prev === 'suggest' ? 'Here’s what I’d suggest.' : locatePrompt());
+  }
+  if (state.care) { const c = state.care; state.care = null; if (!c.point) { if (c.id !== state.focus) state.cand = c.id; } refresh(); agentSay('Okay. Adjust it, or tap somewhere else.'); return; }
+  if (state.cand || state.sel || state.lit.length || state.pendingSide) { Object.assign(state, { cand: null, sel: null, lit: [], pendingSide: null }); refresh(); agentSay('Okay. Tap where it bothers you.'); return; }
+  if (state.focus === 'body') return goHome();
+  goFocus(N[state.focus].parent);
+}
+// Show a place the user mentioned on the body. The conversation decides what Lofer says next.
+async function applyTarget(res, { advanceAfter = true } = {}) {
+  if (!G.ready) { await readyP; }
+  scanSweep();
+  const F = ensureFlow();
+  if (res.ask) {
+    const a = res.ask.tmpl.replace('{s}', 'r'), b = res.ask.tmpl.replace('{s}', 'l'), f = lca(a, b);
+    Object.assign(state, { focus: f, cand: null, sel: null, lit: [a, b], pendingSide: res.ask, care: null });
+    frame(f); refresh();
+    if (advanceAfter) advance([]);
+    return;
+  }
+  const id = res.id;
+  if (isLeaf(id)) {
+    const s = leafRep(id); if (!s) return;
+    frame(N[id].parent, { turn: false });
+    selectLeaf(id, s, { keepFlow: true });
+  } else {
+    Object.assign(state, { focus: id, cand: null, sel: null, lit: [id], pendingSide: null, care: null });
+    frame(id);
+  }
+  const changed = Assessment.setRegion(F.A, id);
+  refresh();
+  if (advanceAfter) advance(changed ? ['region'] : []);
+}
+function refine(dir, slight, { keepFlow = false } = {}) {
+  // Only a whole area is lit ("my right shoulder") → pick the part of it that lies that way
+  // ("towards the back" → back of shoulder), using each part's position and facing.
+  if (!state.sel) {
+    const area = state.cand || state.lit[0] || state.focus;
+    const sx = (STATS[area]?.c.x || 1) >= 0 ? 1 : -1;
+    const score = { up: s => s.c.y, down: s => -s.c.y, front: s => s.n.z, back: s => -s.n.z, out: s => s.n.x * sx, in: s => -s.n.x * sx, L: s => s.c.x, R: s => -s.c.x }[dir];
+    const pick = leavesOf(area).filter(l => STATS[l]).sort((a, b) => score(STATS[b]) - score(STATS[a]))[0];
+    if (!pick) return;
+    const s = leafRep(pick); if (!s) return;
+    return selectLeaf(pick, s, { say: keepFlow ? null : `Here? ${cap(N[pick].say)}.`, keepFlow });
+  }
+  const base = { p: state.sel.p.clone(), n: state.sel.n.clone() };
+  const cur = state.sel.id, sx = base.p.x >= 0 ? 1 : -1;
+  const V = { up: [0, 1, 0], down: [0, -1, 0], out: [sx, 0, 0], in: [-sx, 0, 0], front: [0, 0, 1], back: [0, 0, -1], L: [1, 0, 0], R: [-1, 0, 0] }[dir];
+  const step = dir === 'front' || dir === 'back' ? (slight ? .05 : .08) : slight ? .026 : .045;   // front/back has to travel around the limb
+  const q = surf(new THREE.Vector3(base.p.x + V[0] * step, base.p.y + V[1] * step, base.p.z + V[2] * step));
+  const id = classifyAt(q);
+  const word = { down: 'lower', up: 'higher', out: 'further out', in: 'further in', front: 'toward the front', back: 'toward the back', L: 'to the left', R: 'to the right' }[dir];
+  const msg = id === cur ? `A little ${word}. Here?` : `Here? ${cap(N[id].say)}.`;
+  selectLeaf(id, q, { say: keepFlow ? null : msg, keepFlow });
+}
+
+/* Language understanding lives in symptom.js (Lofer.Symptom.parse) */
+function sideOfState() {
+  const id = state.sel?.id || state.cand || state.lit[0] || state.focus;
+  return id ? N[id].side || null : null;
+}
+function resolve(r) {
+  const e = r.entry, side = r.side || (state.scene === 'body' ? sideOfState() : null);
+  if (e.s && side) return { id: e.s.replace('{s}', side) };
+  if (e.s && (r.bilateral || state.flow?.A.laterality === 'both')) return { ask: { tmpl: e.s, noun: e.noun, both: true } };
+  if (e.id) return { id: e.id };
+  return { ask: { tmpl: e.s, noun: e.noun } };
+}
+
+async function handle(text) {
+  const r = Symptom.parse(text);
+  // HOME: the user tells their story. Lofer acknowledges what it understood, then the body takes over.
+  if (state.scene === 'home') {
+    const F = startAssessment(), A = F.A;
+    const learned = Assessment.update(A, r, { expect: 'story' });
+    const res = r.entry ? resolve(r) : null;
+    if (res?.id) { Assessment.setRegion(A, res.id); learned.push('region'); }
+    const urgent = A.safetyFlags.some(f => f.level === 'urgent');
+    agentSay(urgent ? 'Thanks for telling me.' : Assessment.ack(A, learned) || 'Thanks for telling me.');
+    const cl = ctxLine(); $('#ctx').textContent = cl; $('#ctx').hidden = !cl;
+    await wait(1400);
+    await goBody(text, { keepFlow: true });
+    await wait(450);
+    if (res && !urgent) await applyTarget(res, { advanceAfter: false });
+    return advance([], { skipAck: true });
+  }
+  const F = state.flow;
+  // Inside the care loop, what the user says is read against the current step.
+  if (F) {
+    const t = text.toLowerCase();
+    const descriptive = !!(r.entry || r.type || r.activity || r.triggers.length || r.onset || Object.keys(r.story || {}).length || r.flags.length);
+    if (F.step === 'clarify' || F.step === 'listening' || F.step === 'correct') return hear(r);
+    if (F.step === 'confirm') {
+      if (descriptive) return hear(r);                               // a correction in their own words
+      if (r.deny) return correction();
+      if (r.confirm) return confirmYes();
+      return agentSay('Is that right? You can say yes, or tell me what to change.');
+    }
+    if (F.step === 'locate' && descriptive && !r.entry) { const learned = Assessment.update(F.A, r, {}); if (r.flags.some(f => f.level !== 'caution')) return advance(learned); }
+    if (F.step === 'movement') {
+      if (/skip/.test(t)) return skipMovement();
+      const m = r.movement || (r.flags.length ? { feel: 'cannot' } : null);
+      if (m?.feel) return movementAnswer(m);
+      return agentSay('How did that feel? Fine, a little uncomfortable, quite uncomfortable, or not comfortable at all?');
+    }
+    if (F.step === 'suggest' || F.step === 'custom') {
+      if (r.prefs) return applyPrefs(r.prefs);
+      if (r.start || r.confirm) return startTreatment();
+      if (r.dir && state.sel) return applyPrefs({ focus: r.dir });
+      return agentSay('You can say things like "more heat", "keep it gentle" or "no electrical stimulation". Say "start" when you\'re ready.');
+    }
+    if (F.step === 'treat' || F.step === 'paused') {
+      if (/\b(stop|end|finish)\b/.test(t)) return endRun();
+      if (/pause|hold on|wait/.test(t) && F.step === 'treat') { Device.pause(); F.step = 'paused'; refresh(); return agentSay('Paused.'); }
+      if (/resume|continue|carry on|go on/.test(t) && F.step === 'paused') return resumeRun(F.pausedForWorse);
+      if (r.prefs?.focus || (r.dir && /focus|move/.test(t))) return moveFocus(r.prefs?.focus || r.dir);
+      if (r.feedback) return feedback(r.feedback, 'voice');
+      if (r.prefs?.intensity) return feedback(r.prefs.intensity < 0 ? 'too strong' : 'too weak', 'voice');
+      return agentSay('You can say "too strong", "that feels good", "move the focus lower", or "stop".');
+    }
+    if (F.step === 'reassess') {
+      if (r.response) return reassess(r.response, r.severity);
+      return agentSay('Is it much better, a little better, about the same, or worse?');
+    }
+    if (F.step === 'outcome' || F.step === 'stop') { orb.s = 'idle'; return agentSay('Tap Done when you\'re finished, or start over from home.'); }
+  }
+  // LOCATE: finding the exact place on the body, by voice or touch.
+  if (r.zoom && state.cand && !isLeaf(state.cand)) return zoomIn(state.cand);
+  if (r.entry) return applyTarget(resolve(r));
+  if (state.pendingSide && r.side) return applyTarget({ id: state.pendingSide.tmpl.replace('{s}', r.side) });
+  if (state.pendingSide && (r.bilateral || /\bboth\b/.test(text.toLowerCase()))) return confirmBoth(state.pendingSide.tmpl);
+  if (r.confirm) {
+    if (state.sel) return confirmSel();
+    if (state.cand) return agentSay('Should I zoom in, or take the whole area?');
+  }
+  if (r.turn) { turnCam(r.turn); return agentSay('Turning you around.'); }
+  if (r.dir && (state.sel || state.cand || state.lit.length)) return refine(r.dir, r.slight);
+  if (r.dir) return agentSay('Tap roughly where it is first, then I can move it.');
+  if (r.deny) return agentSay('Okay. Tap the spot, or tell me which way to move it.');
+  if (state.flow && !state.flow.A.userDescription.length && (r.type || r.activity || r.onset)) return hear(r);
+  orb.s = 'idle';
+  agentSay('You can tap the body, or say something like “slightly lower” or “my left calf”.');
+}
+
+/* ================= nav & sheet ================= */
+// Breadcrumbs: BODY › RIGHT ARM › WRIST. Tapping one jumps to that level (only while choosing the place).
+function renderNav() {
+  const tr = $('#trail'); tr.innerHTML = '';
+  const p = pathTo(state.focus);
+  const locating = !state.flow || ['locate', 'listening'].includes(state.flow.step);
+  p.forEach((id, i) => {
+    if (i) tr.appendChild(hx('span', '', '›'));
+    const b = hx('button', '', short(id));
+    if (i === p.length - 1) b.setAttribute('aria-current', 'location');
+    b.disabled = !locating;
+    b.onclick = () => { if (locating && (id !== state.focus || state.sel || state.cand)) goFocus(id); };
+    tr.appendChild(b);
+  });
+  $('#back').setAttribute('aria-label', state.focus === 'body' && !state.cand && !state.sel ? 'Back to start' : 'Back');
+}
+function sheet({ eyebrow, title, term, sub, chips = [], actions = [], note, next, extra }) {
+  const s = sheetEl; s.innerHTML = '';
+  s.appendChild(hx('div', 'grab'));
+  const head = hx('div', 'sh-head');
+  if (eyebrow) head.appendChild(hx('p', 'eyebrow', eyebrow));
+  if (title) head.appendChild(hx('h2', 'sh-title', title));
+  if (term) head.appendChild(hx('p', 'term', term));
+  if (sub) head.appendChild(hx('p', 'sh-sub', sub));
+  if (head.childElementCount) s.appendChild(head);           // keep sheets as small as their content
+  if (extra) (Array.isArray(extra) ? extra : [extra]).forEach(x => s.appendChild(x));
+  if (note) s.appendChild(hx('p', 'note', note));
+  if (next) { const n = hx('div', 'next'); n.appendChild(hx('p', 'eyebrow', 'Next phase')); n.appendChild(hx('p', '', next)); s.appendChild(n); }
+  if (chips.length) {
+    const c = hx('div', 'chips');
+    for (const ch of chips) { const b = hx('button', 'chip', ch.label); b.onclick = ch.fn; c.appendChild(b); }
+    s.appendChild(c);
+  }
+  if (actions.length) {
+    const a = hx('div', 'actions');
+    for (const ac of actions) { const b = hx('button', 'btn' + (ac.primary ? ' primary' : ''), ac.label); b.onclick = ac.fn; a.appendChild(b); }
+    s.appendChild(a);
+  }
+  s.appendChild(voicebar); // talk + type always live at the bottom of the sheet
+}
+const voicebar = $('#voicebar');
+const pickChip = id => () => {
+  if (isLeaf(id)) { const s = leafRep(id); if (s) selectLeaf(id, s, { say: 'tap' }); }
+  else preview(id);
+};
+// Bottom sheet = ACTION ZONE. During "locate" it's body selection; every other step has its own sheet.
+function renderSheet() {
+  const cl = ctxLine();
+  if (state.flow && !['locate', 'listening'].includes(state.flow.step)) return renderFlowSheet();
+  if (state.pendingSide && state.pendingSide.both) {
+    const t = state.pendingSide.tmpl;
+    return sheet({ chips: [{ label: 'Both', fn: () => confirmBoth(t) }, { label: 'Left', fn: () => applyTarget({ id: t.replace('{s}', 'l') }) }, { label: 'Right', fn: () => applyTarget({ id: t.replace('{s}', 'r') }) }] });
+  }
+  if (state.pendingSide) {
+    const t = state.pendingSide.tmpl;
+    return sheet({ chips: [{ label: 'Left', fn: () => applyTarget({ id: t.replace('{s}', 'l') }) }, { label: 'Right', fn: () => applyTarget({ id: t.replace('{s}', 'r') }) }] });
+  }
+  // A spot is selected: one clear control to move it, plus "tap anywhere" on the body.
+  if (state.sel) {
+    const n = N[state.sel.id];
+    const row = hx('div', 'spotrow');
+    const info = hx('div', 'spotinfo'); info.appendChild(hx('b', '', n.label)); info.appendChild(hx('span', '', 'Tap the body, or use the arrows'));
+    row.append(info, spotPad());
+    return sheet({ extra: row, actions: [{ label: "That's the spot", primary: true, fn: confirmSel }] });
+  }
+  if (state.cand) {
+    const n = N[state.cand];
+    return sheet({ title: n.label,
+      actions: [{ label: `Whole ${short(state.cand).toLowerCase()}`, fn: () => confirmArea(state.cand) }, { label: 'Zoom in', primary: true, fn: () => zoomIn(state.cand) }] });
+  }
+  const root = state.focus === 'body';
+  if (root) return sheet({ sub: 'Tap the body, or just tell me. Drag to turn it.' });
+  sheet({
+    title: N[state.focus].label,
+    chips: kidsOf(state.focus).map(id => ({ label: short(id), fn: pickChip(id) })),
+    actions: [{ label: `Whole ${short(state.focus).toLowerCase()}`, fn: () => confirmArea(state.focus) }]
+  });
+}
+// ↑ ↓ ← → in screen directions (moves the spot the way the user sees it).
+function spotPad() {
+  const pad = hx('div', 'pad');
+  const btn = (cls, label, dx, dy, path) => { const b = hx('button', cls); b.setAttribute('aria-label', label);
+    b.innerHTML = `<svg class="i" viewBox="0 0 24 24"><path d="${path}"/></svg>`; b.onclick = () => nudgeSpot(dx, dy); pad.appendChild(b); };
+  btn('up', 'Move up', 0, 1, 'M6 15l6-6 6 6'); btn('left', 'Move left', -1, 0, 'M15 6l-6 6 6 6');
+  pad.appendChild(hx('span', 'dot'));
+  btn('right', 'Move right', 1, 0, 'M9 6l6 6-6 6'); btn('down', 'Move down', 0, -1, 'M6 9l6 6 6-6');
+  return pad;
+}
+// Required ratings start visibly at 5 (what you see is what's saved); optional ones say "Not rated" until touched.
+function painSlider(label, value, onChange, { optional = false } = {}) {
+  if (value == null && !optional) value = 5;
+  const w = hx('div', 'slider');
+  const top = hx('div', 'tog'); top.appendChild(hx('span', '', label));
+  const val = hx('span', 'val'); top.appendChild(val); w.appendChild(top);
+  const inp = hx('input'); inp.type = 'range'; inp.min = 0; inp.max = 10; inp.step = 1; inp.setAttribute('aria-label', label);
+  inp.value = value ?? 5;
+  const words = v => v == 0 ? 'none' : v <= 3 ? 'mild' : v <= 6 ? 'moderate' : 'strong';
+  const paint = () => { val.textContent = value == null ? 'Not rated' : `${inp.value} / 10 · ${words(inp.value)}`; };
+  inp.oninput = () => { value = +inp.value; onChange(value); paint(); };
+  paint(); w.appendChild(inp);
+  const sc = hx('div', 'scale'); sc.appendChild(hx('span', '', 'No pain')); sc.appendChild(hx('span', '', 'Worst')); w.appendChild(sc);
+  return w;
+}
+// One sheet per step of the care loop.
+function renderFlowSheet() {
+  const F = state.flow, title = areaTitleNow(), cl = ctxLine();
+  const L = Engine.LEVELS, A = F.A;
+  // CLARIFY: Lofer's question is in the information zone (dock); here are quick ways to answer.
+  if (F.step === 'clarify') {
+    const q = F.q;
+    if (q.field === 'story') {
+      const pick = hx('div', 'opts');
+      [['Tight', 'tightness'], ['Sore', 'soreness'], ['Achy', 'ache'], ['Sharp', 'sharp']].forEach(([l, v]) => { const b = hx('button', 'opt', l); b.onclick = () => answerChip('sensation', v); pick.appendChild(b); });
+      return sheet({ sub: 'Talk or type, however feels natural. Or start with how it feels:', extra: pick });
+    }
+    if (q.field === 'safety') {
+      const picked = new Set(), box = hx('div', 'opts');
+      q.options.forEach(([l, label]) => { const b = hx('button', 'opt', l); b.setAttribute('aria-pressed', 'false'); b.onclick = () => { picked.has(label) ? picked.delete(label) : picked.add(label); b.setAttribute('aria-pressed', String(picked.has(label))); }; box.appendChild(b); });
+      return sheet({ extra: box,
+        actions: [{ label: 'None of these', fn: () => answerChip('safety', []) }, { label: 'Continue', primary: true, fn: () => answerChip('safety', [...picked].map(label => ({ level: 'stop', label }))) }] });
+    }
+    // The question is already in the information zone; the sheet just offers answers.
+    return sheet({ chips: q.options.map(([l, v]) => ({ label: l, fn: () => answerChip(q.field, v) })) });
+  }
+  // CONFIRM: the summary is Lofer's line (top). The sheet only holds the answer, so the body stays visible.
+  if (F.step === 'confirm') {
+    return sheet({ sub: 'Tap the body to move the spot.', actions: [{ label: 'Not quite', fn: correction }, { label: 'Yes, that’s right', primary: true, fn: confirmYes }] });
+  }
+  if (F.step === 'correct') {
+    return sheet({ chips: [['The place', 'place'], ['How it feels', 'feel'], ['When it started', 'when'], ['What brings it on', 'trigger']].map(([l, v]) => ({ label: l, fn: () => correctField(v) })),
+      actions: [{ label: 'Back to summary', fn: () => { setStep('confirm'); refresh(); agentSay(confirmLine()); } }] });
+  }
+  // MOVEMENT CHECK, AFTER: a quick comparison, not a second lesson. Small loop, one line,
+  // and how it felt before, so the user can compare.
+  if (F.step === 'movement' && F.mPhase === 'after') {
+    const T = F.testDef, side = state.care?.pair ? '' : (sideOf(A.bodyRegion) === 'centre' ? '' : sideOf(A.bodyRegion));
+    const b = A.movement.before;
+    const row = hx('div', 'again');
+    const mini = hx('div', 'mini'); row.appendChild(mini);
+    const info = hx('div', 'againinfo');
+    info.appendChild(hx('b', '', T.move.replace('{side} ', side ? side + ' ' : '')));
+    if (b) info.appendChild(hx('span', '', `Before: ${RESP_MV[b.feel]}${b.where ? `, ${b.where}` : ''}`));
+    row.appendChild(info);
+    setTimeout(() => Movement.animate(mini, T), 0);
+    const answers = hx('div', 'answers');
+    [['fine', 'Feels fine'], ['little', 'A little uncomfortable'], ['quite', 'Quite uncomfortable'], ['cannot', 'Can’t do it comfortably']]
+      .forEach(([feel, label]) => { const btn = hx('button', 'answer', label); btn.onclick = () => movementAnswer({ feel }); answers.appendChild(btn); });
+    return sheet({ extra: [row, answers], actions: [{ label: 'Skip', fn: skipMovement }] });
+  }
+  // MOVEMENT CHECK, BEFORE: clear illustrated demo, then "How does it feel?"
+  if (F.step === 'movement') {
+    const T = F.testDef, side = state.care?.pair ? '' : (sideOf(A.bodyRegion) === 'centre' ? '' : sideOf(A.bodyRegion));
+    // One line of instruction that follows the animation, instead of a list to read.
+    const wrap = hx('div', 'mvwrap');
+    const head = hx('div', 'mvhead'); head.appendChild(hx('b', 'sh-title', T.name));
+    const ctl = hx('div', 'mvctl'); const bP = hx('button', '', 'Pause'), bR = hx('button', '', 'Replay'); ctl.append(bP, bR); head.appendChild(ctl);
+    const demo = hx('div');
+    const line = hx('p', 'mvline'); const ph = hx('b', 'mvphase', 'Start'); const txt = hx('span', '', T.start); line.append(ph, txt);
+    const lines = { start: T.start, move: T.move.replace('{side} ', side ? side + ' ' : ''), hold: T.move.replace('{side} ', side ? side + ' ' : ''), return: T.back, pause: T.start };
+    wrap.append(head, demo, line);
+    let ctrl;
+    setTimeout(() => {
+      ctrl = Movement.animate(demo, T, { onPhase: p => { ph.textContent = { start: 'Start', move: 'Move', hold: 'Move', return: 'Return', pause: 'Start' }[p]; txt.textContent = lines[p]; } });
+      bP.onclick = () => { if (ctrl.paused) { ctrl.play(); bP.textContent = 'Pause'; } else { ctrl.pause(); bP.textContent = 'Play'; } };
+      bR.onclick = () => { ctrl.replay(); bP.textContent = 'Pause'; };
+    }, 0);
+    const answers = hx('div', 'answers');
+    Movement.RESPONSES.forEach(([feel, label]) => { const b = hx('button', 'answer', label.replace('I can’t do this comfortably', 'Can’t do it comfortably')); b.onclick = () => movementAnswer({ feel }); answers.appendChild(b); });
+    return sheet({ extra: [wrap, hx('p', 'ask-hint', `${Movement.STOP.split('.')[0]}. How does it feel?`), answers],
+      actions: [{ label: 'Skip this check', fn: skipMovement }] });
+  }
+  if (F.step === 'stop') {
+    const urgent = F.tri.urgent;
+    const card = hx('div', 'card reasons'); card.appendChild(hx('p', 'eyebrow', 'Because you mentioned'));
+    const ul = hx('ul'); F.tri.reasons.forEach(r => ul.appendChild(hx('li', '', r))); card.appendChild(ul);
+    return sheet({ eyebrow: urgent ? 'Get medical help' : 'Not one for Lofer', title: urgent ? 'Please get urgent help' : 'Lofer shouldn’t treat this',
+      sub: F.tri.guidance + (urgent ? '' : ' Lofer is for everyday tightness and recovery, not for possible injuries.'), extra: card,
+      actions: [...(F.sym.areaId ? [{ label: 'Summary for a professional', fn: () => { const g = groupOf(F.sym.areaId); goHome(); openReport(g); } }] : []), { label: 'Done', primary: true, fn: goHome }] });
+  }
+  // SUGGEST: clear hierarchy. Name, length, one-line reason, then Start / Customise.
+  if (F.step === 'suggest') {
+    const v = F.val.plan, plan = hx('div', 'plan');
+    plan.appendChild(hx('p', 'meta', `${v.minutes} minutes · ${Engine.levelText(v)}${v.steps.some(s => s.modality === 'heat') ? ' · with warmth' : ''}`));
+    plan.appendChild(hx('p', 'reason', F.plan.reason || 'Shaped around what you’ve told me.'));
+    if (F.tri.level === 'caution' || F.val.notes.length) plan.appendChild(hx('p', 'seqline', [F.tri.level === 'caution' ? 'Kept gentle to be safe.' : null, ...F.val.notes].filter(Boolean).join(' ')));
+    const others = F.options.filter(o => o.name !== F.plan.name);
+    const alts = hx('div', 'alts');
+    others.slice(0, 1).forEach(o => { const b = hx('button', '', `Or: ${o.name}`); b.onclick = () => { pickPlan(o, { silent: true }); refresh(); agentSay(o.reason || o.name); }; alts.appendChild(b); });
+    return sheet({ eyebrow: 'Suggested care', title: v.name, extra: [plan, ...(others.length ? [alts] : [])],
+      actions: [{ label: 'Customise', fn: () => { setStep('custom'); refresh(); agentSay('Change anything you like. I’ll keep it within safe limits.'); } }, { label: 'Start session', primary: true, fn: startTreatment }] });
+  }
+  if (F.step === 'custom') {
+    const box = hx('div', 'custom');
+    const mods = ['vibration', 'compression', 'ems', 'heat'];
+    for (const m of mods) {
+      const st = F.plan.steps.find(s => s.modality === m);
+      const row = hx('div', 'crow');
+      const sw = hx('button', 'switch'); sw.setAttribute('role', 'switch'); sw.setAttribute('aria-checked', String(!!st)); sw.setAttribute('aria-label', Engine.MOD[m].label);
+      sw.onclick = () => { const p = { ...F.plan, steps: st ? F.plan.steps.filter(s => s.modality !== m) : [...F.plan.steps.filter(s => s.modality !== 'heat'), { modality: m, intensity: 2, minutes: 3 }, ...F.plan.steps.filter(s => s.modality === 'heat' && m !== 'heat')], adjusted: true, kind: 'custom' }; pickPlan(p, { silent: true }); refresh(); };
+      row.appendChild(hx('span', 'cname', Engine.MOD[m].label)); row.appendChild(sw);
+      if (st) {
+        const ctl = (label, get, set, min, max) => { const w = hx('div', 'level'); const a = hx('button', 'circ', '−'); const v = hx('span', '', label(get())); const b = hx('button', 'circ', '+');
+          a.onclick = () => { set(Math.max(min, get() - 1)); }; b.onclick = () => { set(Math.min(max, get() + 1)); }; w.append(a, v, b); return w; };
+        const upd = (k, val) => { const p = { ...F.plan, steps: F.plan.steps.map(s => s.modality === m ? { ...s, [k]: val } : s), adjusted: true, kind: 'custom' }; pickPlan(p, { silent: true }); refresh(); };
+        row.appendChild(ctl(v => `${v} min`, () => st.minutes, v => upd('minutes', v), 1, 10, 'Minutes'));
+        row.appendChild(ctl(v => `Level ${v}`, () => st.intensity, v => upd('intensity', v), 1, 5, 'Level'));
+      }
+      box.appendChild(row);
+    }
+    return sheet({ eyebrow: 'Customise', title: `${F.val.plan.minutes} min · ${Engine.describe(F.val.plan) || 'nothing selected'}`,
+      extra: box, note: F.val.notes.join(' ') || null, actions: [{ label: 'Done', fn: () => { F.step = 'suggest'; refresh(); } }, { label: 'Start', primary: true, fn: startTreatment }] });
+  }
+  if (F.step === 'treat' || F.step === 'paused') {
+    const run = Device.run, plan = F.val.plan;
+    const live = hx('div', 'live');
+    live.innerHTML = `<svg class="ringt" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="42" fill="none" stroke="rgba(243,235,226,.1)" stroke-width="5"/>
+      <circle id="ringArc" cx="50" cy="50" r="42" fill="none" stroke="#E4B598" stroke-width="5" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="${run ? 264 * (1 - run.t / run.total) : 264}" transform="rotate(-90 50 50)"/>
+      <text id="ringTime" x="50" y="56" text-anchor="middle" font-size="18" fill="#F3EBE2" font-family="Figtree, system-ui" style="font-variant-numeric:tabular-nums">--:--</text></svg>`;
+    const ls = hx('div', 'livestats');
+    const now = hx('div', 'nowmod', F.reading ? `${Engine.MOD[F.reading.modality].label} · level ${F.reading.level}` : Engine.MOD[plan.steps[0].modality].label); now.id = 'nowMod'; ls.appendChild(now);
+    const seq = hx('div', 'seq'); plan.steps.forEach((s, i) => { const sp = hx('span', i === (F.reading?.step || 0) ? 'on' : '', `${Engine.MOD[s.modality].short} ${s.minutes}′`); seq.appendChild(sp); }); ls.appendChild(seq);
+    ls.appendChild(hx('div', 'sm', `Patches ${(run?.active || []).join(', ')} active · simulated device`));
+    live.appendChild(ls);
+    const extra = [live];
+    if (F.check) {
+      const ck = hx('div', 'checkin'); ck.appendChild(hx('p', '', 'How does this feel?'));
+      const row = hx('div', 'chips'); [['Too weak', 'too weak'], ['Good', 'good'], ['Too strong', 'too strong']].forEach(([l, v]) => { const b = hx('button', 'chip', l); b.onclick = () => feedback(v); row.appendChild(b); });
+      ck.appendChild(row); extra.push(ck);
+    }
+    if (F.step === 'paused' && F.pausedForWorse)
+      return sheet({ eyebrow: 'Paused', title: areaTitleNow(), sub: 'Discomfort went up, so I stopped. Carry on more gently, or stop here?', extra,
+        actions: [{ label: 'Stop here', fn: endRun }, { label: 'Carry on gently', primary: true, fn: () => resumeRun(true) }] });
+    return sheet({ eyebrow: F.step === 'paused' ? 'Paused' : `Treating · runs ${SPEED}× faster in the preview`, title: `${plan.name} · ${areaTitleNow()}`, extra,
+      actions: [{ label: F.step === 'paused' ? 'Resume' : 'Pause', fn: () => { if (F.step === 'paused') return resumeRun(false); Device.pause(); F.step = 'paused'; refresh(); } }, { label: 'Stop', fn: endRun }] });
+  }
+  if (F.step === 'reassess') {
+    let v = null;
+    const chips = hx('div', 'answers');
+    [['much', 'Much better'], ['little', 'A little better'], ['same', 'About the same'], ['worse', 'Worse']].forEach(([k, l]) => { const b = hx('button', 'answer', l); b.onclick = () => reassess(k, v); chips.appendChild(b); });
+    const mv = A.movement.before && A.movement.after ? `Movement check: ${RESP_MV[A.movement.before.feel]} before, ${RESP_MV[A.movement.after.feel]} now.` : null;
+    return sheet({ sub: mv, extra: chips });
+  }
+  if (F.step === 'outcome') {
+    const R = F.result, extra = [];
+    if (F.why) { const w = hx('div', 'whybox'); w.appendChild(hx('p', 'eyebrow', 'Why it might feel this way')); w.appendChild(hx('p', 'why', F.why)); extra.push(w); }
+    const acts = [];
+    if (R.escalate) acts.push({ label: 'Physio summary', primary: true, fn: () => { const g = groupOf(F.sym.areaId); goHome(); openReport(g); } });
+    if (R.offerRoutine && !F.routineSaved) acts.push({ label: 'Save routine', primary: !R.escalate, fn: () => { Memory.saveRoutine(F.sym.areaId, F.sym.activity, R.routineName, F.val.plan); F.routineSaved = true; refresh(); agentSay(`Saved as your ${R.routineName.toLowerCase()}. I'll suggest it next time.`); } });
+    acts.unshift({ label: 'Done', primary: !acts.some(a => a.primary), fn: goHome });
+    return sheet({ extra: [...extra, ...(R.body ? [hx('p', 'sh-sub', R.body)] : [])], actions: acts });
+  }
+  return sheet({ title: 'One moment…' });
+}
+const RESP_MV = { fine: 'fine', little: 'a little uncomfortable', quite: 'quite uncomfortable', cannot: 'not comfortable' };
+new ResizeObserver(() => { if (state.scene === 'body' && G.ready && !dragging) frame(state.focus, { turn: false }); }).observe(sheetEl);
+new ResizeObserver(() => { if (state.scene === 'body' && G.ready && !dragging) frame(state.focus, { turn: false }); }).observe(dockEl);
+
+function updateStep() {
+  const st = state.flow?.step, after = state.flow?.mPhase === 'after';
+  const i = state.scene !== 'body' || !st || st === 'listening' ? 0
+    : ['clarify', 'locate', 'correct'].includes(st) ? 1 : st === 'confirm' || (st === 'movement' && !after) ? 2
+    : st === 'suggest' || st === 'custom' ? 3 : st === 'treat' || st === 'paused' ? 4 : 5;
+  document.querySelectorAll('#flow li').forEach((li, k) => { li.classList.toggle('on', k === i); li.classList.toggle('done', k < i); });
+}
+
+/* ================= agent orb ================= */
+const cv = $('#orb'), oc = cv.getContext('2d');
+const orb = { s: 'idle', energy: .15, level: 0, lvT: 0, speakUntil: 0 };
+function drawOrb(now) {
+  const W = cv.width, cx = W / 2, cy = W / 2, R = W * .2, t = now / 1000;
+  if (orb.s === 'speak' && now > orb.speakUntil) orb.s = 'idle';
+  if ((orb.s === 'speak' || orb.s === 'listen') && Math.random() < .12) orb.lvT = .35 + Math.random() * .65;
+  orb.lvT *= .96; orb.level += (orb.lvT - orb.level) * .18;
+  const tgt = { idle: .12, listen: .45 + orb.level * .6, think: .65, speak: .35 + orb.level * .5 }[orb.s];
+  orb.energy += (tgt - orb.energy) * .05;
+  const E = orb.energy;
+  const r = R * (1 + Math.sin(t * Math.PI * 2 / 5) * (orb.s === 'idle' ? .03 : .012) + E * .025);
+  oc.clearRect(0, 0, W, W);
+  let g = oc.createRadialGradient(cx, cy, r * .5, cx, cy, r * 2.2);
+  g.addColorStop(0, `rgba(228,181,152,${.16 + E * .12})`); g.addColorStop(1, 'rgba(228,181,152,0)');
+  oc.fillStyle = g; oc.beginPath(); oc.arc(cx, cy, r * 2.2, 0, 7); oc.fill();
+  oc.save(); oc.beginPath(); oc.arc(cx, cy, r, 0, 7); oc.clip();
+  g = oc.createRadialGradient(cx - r * .3, cy - r * .42, r * .05, cx, cy, r * 1.05);
+  g.addColorStop(0, '#F8E9DC'); g.addColorStop(.35, '#E2B79C'); g.addColorStop(.75, '#8C6553'); g.addColorStop(1, '#3E2B23');
+  oc.fillStyle = g; oc.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+  oc.globalCompositeOperation = 'lighter';
+  const sp = t * (.2 + E * .8);
+  [[255, 226, 204], [196, 150, 128], [190, 184, 206]].forEach((c, i) => {
+    const a = sp * (1 + i * .3) + i * 2.1, bx = cx + Math.cos(a) * r * .3, by = cy + Math.sin(a * 1.3) * r * .28 + r * .15, br = r * (.5 + .1 * Math.sin(sp * 2 + i));
+    const gg = oc.createRadialGradient(bx, by, 0, bx, by, br);
+    gg.addColorStop(0, `rgba(${c},${.12 + E * .14})`); gg.addColorStop(1, `rgba(${c},0)`);
+    oc.fillStyle = gg; oc.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+  });
+  oc.globalCompositeOperation = 'source-over';
+  g = oc.createRadialGradient(cx - r * .35, cy - r * .5, 0, cx - r * .35, cy - r * .5, r * .55);
+  g.addColorStop(0, 'rgba(255,250,244,.5)'); g.addColorStop(1, 'rgba(255,250,244,0)');
+  oc.fillStyle = g; oc.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+  oc.restore();
+  oc.lineWidth = W / 280;
+  oc.strokeStyle = `rgba(255,236,220,${.3 + E * .25})`; oc.beginPath(); oc.arc(cx, cy, r, 0, 7); oc.stroke();
+  // waveform through the orb
+  const amp = r * (.05 + orb.level * .32 * (orb.s === 'listen' || orb.s === 'speak' ? 1 : .2));
+  oc.beginPath();
+  for (let k = 0; k <= 200; k++) {
+    const u = k / 200, x = W * .06 + u * W * .88, xn = (x - cx) / (r * 2.2);
+    const env = Math.exp(-xn * xn * 2.2);
+    const y = cy + r * .12 + env * amp * (Math.sin(u * 38 + t * 5) * .6 + Math.sin(u * 17 - t * 3.3) * .4);
+    k ? oc.lineTo(x, y) : oc.moveTo(x, y);
+  }
+  const lg = oc.createLinearGradient(W * .06, 0, W * .94, 0);
+  lg.addColorStop(0, 'rgba(243,235,226,0)'); lg.addColorStop(.5, `rgba(255,244,234,${.55 + E * .3})`); lg.addColorStop(1, 'rgba(243,235,226,0)');
+  oc.strokeStyle = lg; oc.lineWidth = W / 260; oc.stroke();
+  if (orb.s === 'think') {
+    oc.strokeStyle = 'rgba(255,236,220,.65)'; oc.lineCap = 'round';
+    for (const o of [0, Math.PI]) { oc.beginPath(); oc.arc(cx, cy, r * 1.14, t * 2.6 + o, t * 2.6 + o + 1.1); oc.stroke(); }
+  }
+}
+// Everything Lofer says appears in the information zone and goes through the voice agent (SPEAKING).
+// speak: optional longer version for audio (e.g. the headline plus the "why" explanation).
+function agentSay(text, { speak = null } = {}) {
+  if (!text) return;
+  if (state.scene === 'body') $('#dheard').textContent = '';   // one message at a time: the user's words go once Lofer replies
+  const el = state.scene === 'home' ? $('#greet') : $('#dmsg');
+  el.classList.add('swap');
+  setTimeout(() => { el.textContent = text; el.classList.remove('swap'); }, 240);
+  voice.speak(speak || text);
+}
+
+/* ================= voice input ================= */
+const HOME_SAMPLES = ['My right shoulder has been really tight since tennis yesterday.', 'The back of my left knee is sore after my run.',
+  'My lower back is stiff from sitting all day.', "I've got a knot between my shoulder blades."];
+const REF_SAMPLES = ['Actually, slightly lower.', 'A bit more toward the back.', "Yes, that's the spot."];
+let hi = 0;
+// What the user would plausibly say next (offered as a one-tap suggestion while "listening").
+function nextPhrase() {
+  if (state.scene === 'home') return HOME_SAMPLES[hi++ % HOME_SAMPLES.length];
+  if (state.pendingSide) return 'The right one.';
+  const F = state.flow;
+  if (!F) return HOME_SAMPLES[hi++ % HOME_SAMPLES.length];
+  if (F.step === 'clarify') return ({ story: 'I played tennis yesterday and my shoulder has felt tight since.', sensation: 'It feels tight.', triggers: 'Mostly when I lift it above my head.',
+    onset: 'Since yesterday.', severity: 'Quite a lot.', previous: 'It’s happened before.', safety: 'No, none of those.' })[F.q.field] || 'Okay.';
+  if (F.step === 'locate' || F.step === 'listening') return state.sel ? 'Yes, that’s it.' : state.lit.length ? 'It’s actually more towards the back.' : 'My right shoulder.';
+  return ({ confirm: 'Yes, that’s right.', correct: 'It’s more on the outside, actually.', movement: 'It starts pulling about halfway.',
+    suggest: 'Keep it gentle, and a bit more heat.', custom: 'Okay, let’s start.', treat: F.check ? 'That’s a little too strong.' : 'Can you focus slightly lower?',
+    paused: 'Carry on.', reassess: 'It definitely feels looser now.', outcome: 'Thanks.', stop: 'Okay.' })[F.step] || 'Okay.';
+}
+/* ================= voice agent wiring =================
+   The app talks only to Lofer.Voice (provider-independent). MockVoiceAgent:
+   tapping the mic → LISTENING with a text field standing in for speech;
+   submit → transcript → THINKING → Lofer replies → SPEAKING → IDLE. */
+const voice = Voice.create({ provider: 'mock' });
+const ORB_FOR = { IDLE: 'idle', LISTENING: 'listen', THINKING: 'think', SPEAKING: 'speak', INTERRUPTED: 'idle', ERROR: 'idle' };
+voice.on('state', ({ state: s }) => {
+  orb.s = ORB_FOR[s]; orb.speakUntil = Infinity;
+  for (const b of [$('#mic'), $('#dmic')]) { b.classList.toggle('on', s === 'LISTENING'); b.setAttribute('aria-pressed', String(s === 'LISTENING')); }
+  $('#vbHint').textContent = { LISTENING: 'Listening…', THINKING: 'Thinking…', SPEAKING: 'Tap to interrupt' }[s] || 'Tap to talk';
+  if (s === 'LISTENING') orb.lvT = .6;
+});
+voice.on('transcript', ({ text, final }) => {
+  showHeard(text); orb.lvT = .55 + Math.random() * .45;
+  if (final) setTimeout(async () => { await handle(text); if (voice.getState() === 'THINKING') voice.setState('IDLE'); }, RM ? 50 : 650);
+});
+function showHeard(text) { (state.scene === 'home' ? $('#heard') : $('#dheard')).textContent = text ? `“${text}”` : ''; }
+// The mic button: talk, stop listening, or interrupt Lofer.
+function listen(forced) {
+  if (state.scene === 'splash') return;
+  stopGreeting(); if (state.scene === 'home') $('#ctx').hidden = true;
+  if (forced) { hideType(); return voice.simulate(forced, { wordMs: RM ? 30 : 160 }); }   // "Try saying" samples
+  if (voice.getState() === 'LISTENING') { voice.stopListening(); return hideType(); }
+  voice.startListening();                                                                  // interrupts if Lofer is speaking
+  showHeard('');
+  openType({ voiceMode: true, suggestion: nextPhrase() });
+}
+
+/* ================= typing (also stands in for speech in the mock) ================= */
+const typebar = $('#typebar'), typein = $('#typein'), typesug = $('#typesug');
+function openType({ voiceMode = false, suggestion = null, placeholder = null } = {}) {
+  if (state.scene === 'splash') return; stopGreeting();
+  typebar.hidden = false; typebar.classList.toggle('voice', voiceMode); typein.value = '';
+  typein.placeholder = placeholder || (voiceMode ? 'Listening… type what you’d say' : 'e.g. the back of my left wrist aches');
+  typesug.hidden = !suggestion;
+  if (suggestion) { typesug.textContent = `Try: “${suggestion}”`; typesug.onclick = () => { hideType(); voice.simulate(suggestion, { wordMs: RM ? 30 : 140 }); }; }
+  typein.focus();
+}
+function hideType() { typebar.hidden = true; typesug.hidden = true; }
+function closeType() { hideType(); if (voice.getState() === 'LISTENING') voice.stopListening(); }
+typebar.addEventListener('submit', e => {
+  e.preventDefault(); const v = typein.value.trim(); if (!v) return;
+  if (state.scene === 'home') { $('#sim').hidden = true; $('#ctx').hidden = true; }
+  hideType();
+  voice.transcribe(v);                        // typed text is treated exactly like a transcript
+});
+$('#typeclose').onclick = closeType;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeType(); });
+
+/* ================= storage =================
+   The prototype keeps data on this device (localStorage). In the iOS app this
+   becomes SwiftData / Core Data, optionally synced to a backend later. */
+const Store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} }
+};
+const K_PROFILE = 'lofer.profile.v1', K_SESS = 'lofer.sessions.v1';
+
+/* ================= profile questions ================= */
+const QUESTIONS = [
+  { group: 'About you', items: [
+    { id: 'name', type: 'text', label: 'What should we call you?', placeholder: 'First name' },
+    { id: 'age', type: 'one', label: 'Age range', opts: ['18–24', '25–34', '35–44', '45–54', '55–64', '65+'] },
+    { id: 'sex', type: 'one', label: 'Sex', hint: 'Helps size pressure to typical muscle mass.', opts: ['Female', 'Male', 'Prefer not to say'] }] },
+  { group: 'How you move', items: [
+    { id: 'sports', type: 'many', label: 'What exercise do you do?', opts: ['Running', 'Cycling', 'Gym & weights', 'Tennis & racket sports', 'Football', 'Swimming', 'Yoga & Pilates', 'Climbing', 'Golf', 'Hiking', 'None right now'] },
+    { id: 'freq', type: 'one', label: 'How often?', opts: ['Rarely', '1–2 times a week', '3–4 times a week', '5+ times a week'] },
+    { id: 'posture', type: 'one', label: 'Most of your day is spent…', opts: ['Sitting at a desk', 'Standing', 'On the move', 'A mix'] }] },
+  { group: 'Comfort', items: [
+    { id: 'pressure', type: 'one', label: 'Pressure you usually like', opts: ['Gentle', 'Moderate', 'Firm'] },
+    { id: 'length', type: 'one', label: 'Session length', opts: ['10 min', '15 min', '20 min'] },
+    { id: 'heat', type: 'toggle', label: 'Warmth during sessions' },
+    { id: 'goals', type: 'many', label: 'What do you want from Lofer?', opts: ['Relieve pain', 'Recover after training', 'Relax and de-stress', 'Move more freely'] }] },
+  { group: 'Safety check', note: 'If any of these apply, Lofer keeps pressure gentle and suggests checking with a clinician first.', items: [
+    { id: 'pregnant', type: 'toggle', label: 'Pregnant' },
+    { id: 'implant', type: 'toggle', label: 'Pacemaker or implanted device' },
+    { id: 'recent', type: 'toggle', label: 'Injury or surgery in the last 6 weeks' },
+    { id: 'clot', type: 'toggle', label: 'Blood clotting condition or blood thinners' }] }
+];
+const DEFAULT_PROFILE = { name: '', age: null, sex: null, sports: [], freq: null, posture: null, pressure: 'Moderate', length: '15 min', heat: true, goals: [], pregnant: false, implant: false, recent: false, clot: false };
+let profile = { ...DEFAULT_PROFILE, ...Store.get(K_PROFILE, {}) };
+const saveProfile = () => Store.set(K_PROFILE, profile);
+
+/* ================= CARE LOOP (state machine) =================
+     listening → clarify (one question at a time) → locate (body region) →
+     confirm understanding [→ correct] → movement check → suggest [→ customise] →
+     treat ⇄ paused → movement check again → reassess → result → Body Memory
+   "stop" (safety) can happen from any step. Steps are skipped when not needed.
+   This layer only talks to the user: Assessment decides what's missing, the
+   Engine proposes, Safety validates, and only sealed commands reach the Device. */
+const SPEED = 20;                    // the preview runs sessions 20× faster than real time
+const safetyFlag = () => profile.pregnant || profile.implant || profile.recent || profile.clot;
+const TYPE_LABEL = Symptom.TYPE_LABEL;
+
+function startAssessment(step = 'listening') {
+  state.flow = { step, trail: [], A: Assessment.create(), expect: null, feedback: [], adjustments: [], startedAt: new Date().toISOString() };
+  return state.flow;
+}
+const ensureFlow = () => state.flow || startAssessment();
+function setStep(s) { const F = state.flow; if (F.step !== s) { F.trail.push(F.step); F.step = s; } }
+const historyCount = () => state.flow?.A.bodyRegion ? Memory.history(state.flow.A.bodyRegion).length : 0;
+const ctxLine = () => {
+  const A = state.flow?.A; if (!A) return '';
+  const bits = [A.sensation && !['pain', 'unclear', 'other'].includes(A.sensation) ? TYPE_LABEL[A.sensation] : A.sensationWords, A.activityContext && `after ${A.activityContext}`, A.onset].filter(Boolean);
+  return bits.join(' · ');
+};
+const areaSay = () => state.care ? (state.care.pair ? `both ${Engine.regionNoun(state.care.id)}s` : N[state.care.id].say) : 'that area';
+const areaTitleNow = () => !state.care ? '' : state.care.pair ? `Both ${N[state.care.id].label.replace(/^(Right|Left) /, '').toLowerCase()}s` : state.care.point ? N[state.care.id].label : `Whole ${N[state.care.id].label.toLowerCase()}`;
+
+/* ----- LISTEN → UNDERSTAND: one utterance at a time ----- */
+// Everything the user says while Lofer is getting to know the problem comes through here.
+async function hear(r) {
+  const F = ensureFlow(), A = F.A;
+  const t = (r.raw || '').toLowerCase();
+  // While answering a question, a body word only moves the area if it sounds like a correction
+  // ("actually it's my elbow"), not a passing mention.
+  const relocate = r.entry && (!A.bodyRegion || !F.expect || F.expect === 'story' || /actually|it'?s (my|in|on|more)|not (my|the)|rather|instead|more (in|on|around) (my|the)/.test(t));
+  const learned = Assessment.update(A, r, { expect: F.expect });
+  if (F.expect && learned.length) { A.asked[F.expect] = true; A.questionsAsked++; }
+  if (relocate) {                                        // a place was mentioned → the body follows the conversation
+    const res = resolve(r);
+    if (res.id && res.id !== A.bodyRegion) learned.push('region');
+    await applyTarget(res, { advanceAfter: false });
+  } else if (!learned.length && r.dir && (state.sel || state.lit.length)) {
+    // "It's actually more towards the back" mid-question → move the spot, then carry on.
+    refine(r.dir, r.slight, { keepFlow: true }); state.care = null; A.regionConfirmed = false;
+    return agentSay(`Got it, ${N[state.sel.id].say}. ${F.q?.text || ''}`);
+  }
+  if (!learned.length && F.step === 'clarify') { orb.s = 'idle'; return agentSay(`Sorry, I didn't quite catch that. ${F.q.text}`); }
+  advance(learned);
+}
+// Decide the next step from what's known and what's missing. One question at a time.
+function advance(learned = [], { skipAck = false } = {}) {
+  const F = state.flow, A = F.A;
+  if (A.safetyFlags.some(f => f.level !== 'caution')) return runTriage();      // a warning sign at any point → safety first
+  const ack = skipAck ? '' : Assessment.ack(A, learned);
+  const say = (...parts) => agentSay(parts.filter(Boolean).join(' '));
+  if (state.pendingSide) { setStep('locate'); F.expect = null; refresh(); return say(ack, state.pendingSide.both ? `Is it both ${state.pendingSide.noun}s, or one more than the other?` : `Which ${state.pendingSide.noun} is it, left or right?`); }
+  const q = Assessment.nextQuestion(A, { historyCount: historyCount() });
+  if (q && q.field === 'region') { setStep('locate'); F.expect = null; refresh(); return say(ack, q.text); }
+  if (q) { setStep('clarify'); F.q = q; F.expect = q.field; refresh(); return say(ack, q.text); }
+  if (!A.regionConfirmed) { setStep('locate'); F.expect = null; refresh(); return say(ack, locatePrompt()); }
+  setStep('confirm'); F.expect = null; refresh();
+  agentSay(confirmLine());
+}
+const confirmLine = () => `${Assessment.summary(state.flow.A)} Is that right?`;
+function locatePrompt() {
+  if (state.sel) return 'Here? Tap “That’s the spot”, or tell me which way to move it.';
+  if (state.lit.length) return "Show me exactly where. Tap it, or say something like ‘more towards the back’.";
+  return "Show me where it's bothering you.";
+}
+// The spot (or whole area) has been confirmed on the body.
+function regionConfirmed(id, { pair = null } = {}) {
+  const F = ensureFlow();
+  const changed = Assessment.setRegion(F.A, id, { pair, confirmed: true });
+  advance(changed ? ['region'] : []);
+}
+// A tapped answer chip.
+function answerChip(field, value) {
+  const F = state.flow, A = F.A;
+  if (field === 'sensation' && value === '__other') { F.expect = 'sensation'; openType({ placeholder: 'Describe it in your own words' }); return agentSay('Tell me in your own words. Whatever comes to mind.'); }
+  Assessment.answer(A, field, value); A.questionsAsked++;
+  const learned = { sensation: ['sensation'], triggers: value === '__rest' ? ['symptomsAtRest'] : value === '__none' ? [] : ['movementTriggers'], onset: ['onset'] }[field] || [];
+  advance(learned);
+}
+function confirmYes() { runTriage(); }
+function correction() { setStep('correct'); refresh(); agentSay('No problem. What should I change? Tap one, or just tell me.'); }
+function correctField(what) {
+  const F = state.flow, A = F.A;
+  if (what === 'place') { A.regionConfirmed = false; state.care = null; setStep('locate'); refresh(); return agentSay(locatePrompt()); }
+  if (what === 'feel') { A.sensation = null; A.sensationWords = null; A.asked.sensation = false; }
+  if (what === 'when') { A.onset = null; A.activityContext = null; A.asked.onset = false; }
+  if (what === 'trigger') { A.movementTriggers = []; A.symptomsAtRest = null; A.asked.triggers = false; }
+  A.questionsAsked = Math.min(A.questionsAsked, Assessment.MAX_FOLLOW_UPS - 1);
+  advance([], { skipAck: true });
+}
+
+/* ----- SAFETY / TRIAGE GATE ----- */
+function runTriage() {
+  const F = state.flow;
+  F.sym = Assessment.toSym(F.A);
+  F.tri = Safety.triage(F.sym, profile);
+  if (F.tri.level === 'stop') {
+    setStep('stop'); refresh();
+    saveEpisode(null);
+    agentSay(F.tri.urgent ? 'This needs medical attention rather than Lofer.' : "I don't think Lofer should treat this one. Let me explain why.");
+    return;
+  }
+  if (!F.A.movement.before && !F.skipMovement) return movementStep('before');
+  suggestStep();
+}
+
+/* ----- MOVEMENT CHECK (before and after) ----- */
+function movementStep(phase) {
+  const F = state.flow;
+  F.testDef = F.testDef || Movement.testFor(F.A.bodyRegion);
+  if (!F.testDef) { F.skipMovement = true; return phase === 'before' ? suggestStep() : reassessStep(); }
+  F.mPhase = phase; setStep('movement'); refresh();
+  agentSay(phase === 'before' ? F.testDef.intro : "Let's try that movement again and see how it feels now?");
+}
+function movementAnswer(m) {
+  const F = state.flow, A = F.A, phase = F.mPhase;
+  const res = { ...m, score: Movement.scoreOf(m.feel) };
+  A.movement[phase] = res;
+  F.test = F.test || { id: F.testDef.id, name: F.testDef.name, before: null, after: null };
+  F.test[phase] = res.score; F.test[phase + 'Detail'] = m;
+  if (phase === 'after') return reassessStep();
+  // The safety layer decides what a difficult movement means (it may make care gentler, or stop).
+  F.sym = Assessment.toSym(A); F.tri = Safety.triage(F.sym, profile);
+  if (F.tri.level === 'stop') { setStep('stop'); refresh(); saveEpisode(null); return agentSay("Thanks for trying. I don't think Lofer should treat this today."); }
+  const where = [m.where, m.quality && `a ${m.quality} feeling`, m.side && `on the ${m.side}`].filter(Boolean).join(', ');
+  agentSay({ fine: 'Good, that helps.', little: `Thanks. I've noted that${where ? ` (${where})` : ''}.`, quite: "Thanks. I'll keep things gentle.", cannot: "That's fine, no need to push it. I'll keep things gentle." }[m.feel] || 'Thanks.');
+  setTimeout(suggestStep, 900);
+}
+function skipMovement() { const F = state.flow; F.skipMovement = true; F.mPhase === 'after' ? reassessStep() : suggestStep(); }
+
+/* ----- 3. SUGGEST ----- */
+function suggestStep() {
+  const F = state.flow;
+  const history = Memory.history(F.sym.areaId);
+  const routine = Memory.routineFor(F.sym.areaId, F.sym.activity);
+  const sug = Engine.suggest({ sym: F.sym, tri: F.tri, profile, history, routine });
+  F.options = sug.options; F.history = history;
+  pickPlan(sug.pick, { silent: true });
+  setStep('suggest'); refresh();
+  agentSay(`${sug.headline} Would you like to try this, or is there something you'd change?`);
+}
+function pickPlan(plan, { silent = false } = {}) {
+  const F = state.flow;
+  F.plan = plan; F.val = Safety.validate(plan, F.tri);
+  if (!silent) { refresh(); agentSay(`${plan.name}: ${Engine.describe(F.val.plan)}.`); }
+}
+function applyPrefs(prefs) {
+  const F = state.flow;
+  const { plan, said } = Engine.applyPrefs(F.plan, prefs, profile);
+  if (prefs.focus && state.sel) refine(prefs.focus, true, { keepFlow: true });
+  pickPlan(plan, { silent: true }); refresh();
+  const notes = F.val.notes.length ? ' ' + F.val.notes.join(' ') : '';
+  agentSay(said.length ? `Done: ${said.join(', ')}.${notes}` : `Okay.${notes}`);
+}
+function startTreatment() { beginRun(); }   // the movement check already happened before the suggestion
+
+/* ----- 4. TREAT ----- */
+function beginRun() {
+  const F = state.flow;
+  F.val = Safety.validate(F.plan, F.tri);
+  if (!F.val.ok) { F.step = 'stop'; refresh(); return; }
+  Device.execute(F.val.command);           // the only way anything reaches the device
+  setStep('treat'); F.check = null; F.nextCheck = 0;
+  F.checkAt = Engine.checkIns(F.history || []);
+  refresh(); placePatches();
+  agentSay("Starting gently. Just tell me any time if it's too much.");
+}
+// The session runs on its own clock, not the drawing loop: drawing pauses when
+// the screen locks or the app is in the background, but a treatment must not.
+let lastTick = performance.now();
+setInterval(() => { const now = performance.now(); flowTick(Math.min(1, (now - lastTick) / 1000)); lastTick = now; }, 250);
+function flowTick(dt) {
+  const F = state.flow; if (!F || (F.step !== 'treat' && F.step !== 'paused')) return;
+  const rd = Device.tick(dt * SPEED); if (!rd) return;
+  F.reading = rd;
+  const run = Device.run, frac = run.t / run.total;
+  const el = $('#ringTime');
+  if (el) {
+    const left = Math.max(0, run.total - run.t);
+    el.textContent = `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
+    $('#ringArc').style.strokeDashoffset = String(264 * (1 - frac));
+    $('#nowMod').textContent = `${Engine.MOD[rd.modality].label} · level ${rd.level}`;
+    document.querySelectorAll('.seq span').forEach((s, i) => s.classList.toggle('on', i === rd.step));
+  }
+  if (F.step === 'treat' && !F.check && F.nextCheck < F.checkAt.length && frac >= F.checkAt[F.nextCheck]) {
+    F.check = { at: performance.now() }; F.nextCheck++; refresh(); agentSay('How does this feel?');
+  }
+  if (F.check && performance.now() - F.check.at > 14000) { F.check = null; refresh(); }   // no answer → carry on quietly
+  if (rd.done) endRun();
+}
+function feedback(value, via = 'tap') {
+  const F = state.flow, run = Device.run; if (!run) return;
+  F.feedback.push({ t: Math.round(run.t), value, via }); F.check = null;
+  const act = Engine.feedbackAction(value); if (!act) return;
+  if (act.type === 'level') {
+    const step = run.cmd.steps[F.reading?.step || 0], cur = run.level ?? step.intensity;
+    const cmd = Safety.validateLevel(cur + act.delta, step.modality, F.tri);
+    Device.setIntensity(cmd);
+    F.adjustments.push({ t: Math.round(run.t), what: `Intensity ${cur} → ${cmd.setIntensity} (${value})` });
+    refresh();
+    return agentSay(cmd.capped && act.delta > 0 ? "That's as firm as I can safely go here." : act.say);
+  }
+  if (act.type === 'pause') { Device.pause(); F.step = 'paused'; F.pausedForWorse = true; refresh(); return agentSay(act.say); }
+  refresh(); agentSay(act.say);
+}
+function moveFocus(dir) {
+  const F = state.flow;
+  if (!state.sel || !state.care?.point) return agentSay('This session covers the whole area, so there is nothing to move.');
+  const before = state.sel.id;
+  refine(dir, true, { keepFlow: true });
+  const cmd = Safety.validateRetarget(before, state.sel.id, F.tri);
+  if (!cmd) return agentSay('I can only move the focus within the same area during a session.');
+  Device.retarget(cmd); state.care.id = state.sel.id; placePatches();
+  F.adjustments.push({ t: Math.round(Device.run?.t || 0), what: `Focus moved ${dir === 'down' ? 'lower' : dir === 'up' ? 'higher' : dir} to ${N[state.sel.id].label.toLowerCase()}` });
+  refresh(); agentSay(`Moved the focus ${{ up: 'higher', down: 'lower', out: 'further out', in: 'further in', front: 'toward the front', back: 'toward the back' }[dir] || ''}.`);
+}
+function resumeRun(gentler) {
+  const F = state.flow;
+  if (gentler && Device.run) {
+    const step = Device.run.cmd.steps[F.reading?.step || 0], cur = Device.run.level ?? step.intensity;
+    const cmd = Safety.validateLevel(cur - 1, step.modality, F.tri); Device.setIntensity(cmd);
+    F.adjustments.push({ t: Math.round(Device.run.t), what: `Paused after discomfort increased, resumed at level ${cmd.setIntensity}` });
+  }
+  F.pausedForWorse = false; Device.resume(); F.step = 'treat'; refresh();
+  agentSay(gentler ? 'Carrying on more gently. Tell me straight away if it gets worse.' : 'Resuming.');
+}
+function endRun() {
+  const F = state.flow;
+  const run = Device.stop(); F.run = run; clearPatches();
+  if (F.A.movement.before && !F.skipMovement) return movementStep('after');
+  reassessStep();
+}
+function reassessStep() { setStep('reassess'); refresh(); agentSay('All done. How does that feel now?'); }
+
+/* ----- REASSESS → LEARN / ESCALATE ----- */
+function reassess(response, sevAfter) {
+  const F = state.flow;
+  F.response = response; F.sevAfter = sevAfter ?? null;
+  F.result = Engine.reassess({ response, sym: F.sym, plan: F.val.plan, history: F.history || [] });
+  // A plausible, hedged "why it might feel this way" (text on screen, spoken by the voice agent).
+  F.why = Engine.explain({ response, sym: F.sym, plan: F.val.plan, before: F.A.movement.before, after: F.A.movement.after });
+  F.episode = saveEpisode(F.run);
+  setStep('outcome'); refresh();
+  agentSay(F.result.headline, { speak: `${F.result.headline} ${F.why}` });
+}
+function saveEpisode(run) {
+  const F = state.flow, c = state.care;
+  F.sym = F.sym || Assessment.toSym(F.A);
+  const pt = c && c.point && state.sel ? state.sel : null;
+  const ep = {
+    id: 'e' + Date.now(), sample: false, createdAt: F.startedAt, said: [...F.A.userDescription],
+    point: pt ? [pt.p.x, pt.p.y, pt.p.z].map(v => +v.toFixed(4)) : null, normal: pt ? [pt.n.x, pt.n.y, pt.n.z].map(v => +v.toFixed(3)) : null,
+    symptom: { ...F.sym, flags: F.sym.flags.map(f => f.label), movement: undefined },
+    assessment: { confidence: F.A.confidence, questionsAsked: F.A.questionsAsked, movementBefore: F.A.movement.before, movementAfter: F.A.movement.after },
+    triage: { level: F.tri.level, reasons: F.tri.reasons },
+    intervention: run ? { planName: F.val.plan.name, kind: F.val.plan.kind, steps: F.val.plan.steps, minutesPlanned: F.val.plan.minutes, durationSec: Math.round(run.t),
+      patches: run.active, adjustments: F.adjustments, safetyNotes: F.val.notes, log: run.log } : null,
+    feedback: F.feedback, test: F.test || null,
+    outcome: run ? { response: F.response, severityAfter: F.sevAfter, pathway: F.result?.pathway, sensors: Memory.summarise(run.log), lofersNote: F.why || null } : { response: null, pathway: 'not treated' }
+  };
+  Memory.add(ep); return ep;
+}
+
+/* ----- active patches drawn on the 3D body ----- */
+let patchMeshes = [];
+function clearPatches() { patchMeshes.forEach(m => scene.remove(m)); patchMeshes = []; }
+function placePatches() {
+  clearPatches(); if (!G.ready || !state.care) return;
+  const spots = [];
+  const around = s => {
+    const n = s.n.clone().normalize(), up = Math.abs(n.y) > .9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+    const t1 = new THREE.Vector3().crossVectors(n, up).normalize(), t2 = new THREE.Vector3().crossVectors(n, t1).normalize();
+    [t2.clone().multiplyScalar(.038), t2.clone().multiplyScalar(-.038), t1.clone().multiplyScalar(.034)].forEach(o => spots.push(surf(s.p.clone().add(o))));
+  };
+  const base = state.care.point && state.sel ? state.sel : repPoint(state.care.id);
+  if (base) around(base);
+  if (state.care.pair) { const b2 = repPoint(state.care.pair); if (b2) around(b2); }
+  for (const s of spots) {
+    const m = new THREE.Mesh(new THREE.CircleGeometry(.013, 32), new THREE.MeshBasicMaterial({ color: 0xF6E2D2, transparent: true, opacity: .8, depthTest: false, depthWrite: false }));
+    m.position.copy(s.p).addScaledVector(s.n, .003); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), s.n.normalize());
+    m.renderOrder = 4; scene.add(m); patchMeshes.push(m);
+  }
+}
+function pulsePatches(now) {
+  if (!patchMeshes.length) return;
+  const rd = state.flow?.reading, paused = !rd || rd.paused;
+  const f = rd ? { vibration: 9, compression: 1.4, heat: .6, ems: 3 }[rd.modality] : 1;
+  patchMeshes.forEach((m, i) => { m.material.opacity = paused ? .35 : .55 + .35 * Math.sin(now / 1000 * f * Math.PI + i); m.material.color.setHex(rd?.modality === 'heat' ? 0xF2B48E : 0xF6E2D2); });
+}
+
+/* ================= BODY HISTORY (Care Record) ================= */
+const fmtDay = d => {
+  const t = new Date(); t.setHours(0, 0, 0, 0); const x = new Date(d); x.setHours(0, 0, 0, 0);
+  const diff = Math.round((t - x) / 864e5);
+  return diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' : new Date(d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+};
+const fmtTime = d => new Date(d).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+const epTitle = e => N[e.symptom.areaId] ? (e.symptom.pairId ? `Both ${N[e.symptom.areaId].label.replace(/^(Right|Left) /, '').toLowerCase()}s` : N[e.symptom.areaId].label) : '—';
+const RESP = { much: 'Much better', little: 'A little better', same: 'About the same', worse: 'Worse' };
+let histFilter = null;
+
+let SIL = null;   // 2D silhouette of the same body, computed once from the distance field
+function silhouette() {
+  if (SIL) return SIL;
+  const h = .012, x0 = -.4, y0 = -.03, nx = Math.ceil(.8 / h), ny = Math.ceil(1.83 / h), m = new Uint8Array(nx * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const x = x0 + i * h, y = y0 + j * h;
+    for (let z = -.2; z <= .2; z += .018) if (sdf(P, x, y, z) < 0) { m[i + nx * j] = 1; break; }
+  }
+  return (SIL = { m, nx, ny, h, x0, y0 });
+}
+function epPoint(e) {
+  if (e.point) return { p: e.point, n: e.normal || [0, 0, 1] };
+  const st = STATS[e.symptom.areaId]; if (!st) return null;
+  const rp = leafRep(e.symptom.areaId) || { p: st.c, n: st.n };
+  return { p: [rp.p.x, rp.p.y, rp.p.z], n: [rp.n.x, rp.n.y, rp.n.z] };
+}
+function drawBodyMap(cvs, list, highlight) {
+  const dpr = Math.min(2, devicePixelRatio || 1), W = cvs.clientWidth || 340, H = Math.round(W / 2 * 1.55);
+  cvs.width = W * dpr; cvs.height = H * dpr;
+  const c = cvs.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+  const S = silhouette(), sc = H * .92 / 1.83, top = H * .04, panels = [W * .25, W * .75];
+  panels.forEach((cx, pi) => {
+    c.fillStyle = 'rgba(228,181,152,.13)';
+    for (let j = 0; j < S.ny; j++) for (let i = 0; i < S.nx; i++) {
+      if (!S.m[i + S.nx * j]) continue;
+      const x = S.x0 + i * S.h, y = S.y0 + j * S.h;
+      c.fillRect(cx + (pi ? -x : x) * sc - S.h * sc * .55, top + (1.8 - y) * sc - S.h * sc * .55, S.h * sc * 1.1, S.h * sc * 1.1);
+    }
+  });
+  const by = {};
+  for (const e of list) { const g = groupOf(e.symptom.areaId); (by[g] ||= { e, n: 0 }).n++; }
+  const dots = [];
+  for (const g in by) {
+    const { e, n } = by[g], rp = epPoint(e); if (!rp) continue;
+    const back = rp.n[2] < -.15, cx = panels[back ? 1 : 0];
+    const x = cx + (back ? -rp.p[0] : rp.p[0]) * sc, y = top + (1.8 - rp.p[1]) * sc;
+    const rad = 4 + 2.4 * Math.sqrt(n), on = !highlight || highlight === g;
+    const gr = c.createRadialGradient(x, y, 0, x, y, rad * 2.4);
+    gr.addColorStop(0, `rgba(246,226,210,${on ? .95 : .25})`); gr.addColorStop(.35, `rgba(228,181,152,${on ? .55 : .12})`); gr.addColorStop(1, 'rgba(228,181,152,0)');
+    c.fillStyle = gr; c.beginPath(); c.arc(x, y, rad * 2.4, 0, 7); c.fill();
+    dots.push({ x, y, g, rad });
+  }
+  cvs._dots = dots;
+}
+function dumbbell(a, b) {
+  if (a == null || b == null) return '';
+  const x = v => 4 + v / 10 * 66;
+  return `<svg class="dumb" viewBox="0 0 74 14" aria-hidden="true"><line x1="4" y1="7" x2="70" y2="7" stroke="rgba(243,235,226,.12)" stroke-width="2" stroke-linecap="round"/>
+    <line x1="${x(a)}" y1="7" x2="${x(b)}" y2="7" stroke="#E4B598" stroke-opacity=".6" stroke-width="2"/>
+    <circle cx="${x(a)}" cy="7" r="4" fill="#1B1817" stroke="#A39690" stroke-width="1.5"/><circle cx="${x(b)}" cy="7" r="4" fill="#E4B598" stroke="#1B1817" stroke-width="2"/></svg>`;
+}
+function statTile(v, l) { const s = hx('div', 'stat'); s.appendChild(hx('b', '', String(v))); s.appendChild(hx('span', '', l)); return s; }
+
+function renderHistory() {
+  const box = $('#recordsBody'); box.innerHTML = '';
+  const all = Memory.all();
+  const head = hx('div'); head.appendChild(hx('h1', 'ptitle', 'Body history'));
+  head.appendChild(hx('p', 'plede', 'What has bothered you, what Lofer did, and how it went. Your own words are kept next to each record.'));
+  box.appendChild(head);
+  if (!all.length) { box.appendChild(hx('p', 'empty', 'Nothing here yet. Tell Lofer how your body feels and each episode will appear here.')); return; }
+  // What tends to bother this user, and what helps
+  const ins = Memory.insights().slice(0, 3);
+  const ig = hx('div', 'group'); ig.appendChild(hx('h3', '', 'What Lofer has learned'));
+  for (const i of ins) {
+    const c = hx('div', 'tune insight');
+    c.appendChild(hx('b', '', `${i.label} · ${i.count} episode${i.count > 1 ? 's' : ''}`));
+    const bits = [];
+    if (i.topContext && i.topContextCount >= 2) bits.push(`Usually after ${i.topContext} (${i.topContextCount} of ${i.count}).`);
+    if (i.best) bits.push(`Responds best to ${i.best}.`);
+    if (i.trend) bits.push('Happening more often lately.');
+    if (i.selfCareFailing) bits.push('Recent sessions haven’t helped. Worth a professional opinion.');
+    c.appendChild(hx('p', '', bits.join(' ') || 'Not enough history yet to see a pattern.'));
+    if (i.selfCareFailing) { const b = hx('button', 'linkbtn', 'Prepare a physio summary'); b.onclick = () => openReport(i.group); c.appendChild(b); }
+    ig.appendChild(c);
+  }
+  box.appendChild(ig);
+  const share = hx('button', 'btn', 'Share with a physiotherapist'); share.onclick = () => openReport(null); box.appendChild(share);
+  // Map
+  const mg = hx('div', 'group'); mg.appendChild(hx('h3', '', 'Where it’s been'));
+  const bm = hx('div', 'bodymap'); const cvs = hx('canvas'); cvs.setAttribute('aria-label', 'Front and back body map. Tap a glow to filter episodes.');
+  bm.appendChild(cvs); const cap = hx('div', 'cap'); cap.appendChild(hx('span', '', 'Front')); cap.appendChild(hx('span', '', 'Back')); bm.appendChild(cap); mg.appendChild(bm);
+  if (histFilter) { const f = hx('button', 'filter'); f.textContent = `Showing ${N[histFilter].label} ✕`; f.onclick = () => { histFilter = null; renderHistory(); }; mg.appendChild(f); }
+  box.appendChild(mg);
+  requestAnimationFrame(() => drawBodyMap(cvs, all, histFilter));
+  cvs.onclick = e => {
+    const r = cvs.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    const d = (cvs._dots || []).map(o => ({ o, d: Math.hypot(o.x - x, o.y - y) })).sort((a, b) => a.d - b.d)[0];
+    histFilter = d && d.d < d.o.rad * 2.4 + 8 ? (histFilter === d.o.g ? null : d.o.g) : null; renderHistory();
+  };
+  // Episodes
+  const list = histFilter ? all.filter(e => groupOf(e.symptom.areaId) === histFilter) : all;
+  const g = hx('div', 'group'); g.appendChild(hx('h3', '', 'Episodes'));
+  let day = null, card = null;
+  for (const e of list) {
+    const dl = fmtDay(e.createdAt);
+    if (dl !== day) { day = dl; g.appendChild(hx('p', 'dayhead', dl)); card = hx('div', 'card'); g.appendChild(card); }
+    const b = hx('button', 'sess');
+    const t = hx('span', 't', epTitle(e)); if (e.sample) t.appendChild(hx('span', 'badge', 'Sample')); b.appendChild(t);
+    if (e.said?.length) b.appendChild(hx('span', 'q', `“${e.said[0]}”`));
+    const meta = [TYPE_LABEL[e.symptom.type], e.intervention ? `${Math.round(e.intervention.durationSec / 60)} min ${e.intervention.planName.toLowerCase()}` : 'Not treated', e.outcome?.response ? RESP[e.outcome.response] : null].filter(Boolean).join(' · ');
+    b.appendChild(hx('span', 'm', meta));
+    const pain = hx('span', 'pain'); pain.innerHTML = dumbbell(e.symptom.severity, e.outcome?.severityAfter);
+    if (e.symptom.severity != null) pain.appendChild(hx('span', '', e.outcome?.severityAfter != null ? `${e.symptom.severity} → ${e.outcome.severityAfter}` : `${e.symptom.severity}/10`));
+    b.appendChild(pain);
+    b.onclick = () => { openPage('record'); renderEpisode(e); };
+    card.appendChild(b);
+  }
+  box.appendChild(g);
+}
+
+// One episode: the user's words, then the neutral structured record.
+function renderEpisode(e) {
+  const box = $('#recordBody'); box.innerHTML = '';
+  const head = hx('div'); head.appendChild(hx('h1', 'ptitle', epTitle(e)));
+  head.appendChild(hx('p', 'plede', `${fmtDay(e.createdAt)}, ${fmtTime(e.createdAt)}${e.sample ? ' · sample episode' : ''}`));
+  box.appendChild(head);
+  if (e.said?.length) {
+    const q = hx('div', 'said'); q.appendChild(hx('p', 'eyebrow', 'You said'));
+    e.said.forEach(s => q.appendChild(hx('blockquote', '', `“${s}”`))); box.appendChild(q);
+  }
+  const rows = [
+    ['Region', epTitle(e)],
+    ['Reported symptom', TYPE_LABEL[e.symptom.type] || 'Not described'],
+    ['Trigger / context', [e.symptom.activity && `After ${e.symptom.activity}`, e.symptom.onset && `started ${e.symptom.onset}`].filter(Boolean).join(', ') || '—'],
+    e.symptom.triggers?.length ? ['Movement associated with discomfort', e.symptom.triggers.join(', ')] : null,
+    ['Self-reported severity', e.symptom.severity != null ? `${e.symptom.severity}/10` : 'Not rated'],
+    e.symptom.flags?.length ? ['Warning signs reported', e.symptom.flags.join(', ')] : null,
+    ['Safety check', e.triage.level === 'stop' ? 'Not treated: ' + e.triage.reasons.join(', ') : e.triage.level === 'caution' ? 'Treated conservatively: ' + e.triage.reasons.join(', ') : 'Cleared'],
+    e.intervention ? ['Treatment', `${Math.round(e.intervention.durationSec / 60)} min ${e.intervention.planName.toLowerCase()}: ${e.intervention.steps.map(s => `${Engine.MOD[s.modality].label.toLowerCase()} L${s.intensity}`).join(' → ')}`] : null,
+    e.intervention?.adjustments?.length ? ['Adjustments', e.intervention.adjustments.map(a => a.what).join('; ')] : null,
+    e.feedback?.length ? ['During treatment', e.feedback.map(f => f.value).join(', ')] : null,
+    e.test ? [`Movement check (${e.test.name})`, e.test.beforeDetail
+      ? `${RESP_MV[e.test.beforeDetail.feel]}${e.test.beforeDetail.where ? ` (${e.test.beforeDetail.where})` : ''} before, ${e.test.afterDetail ? RESP_MV[e.test.afterDetail.feel] : 'not checked'} after`
+      : `${e.test.before ?? '–'}/10 before → ${e.test.after ?? '–'}/10 after`] : null,
+    e.outcome?.response ? ['Response', `${RESP[e.outcome.response]}${e.outcome.severityAfter != null ? `, ${e.outcome.severityAfter}/10 after session` : ''}`] : null,
+    e.outcome?.lofersNote ? ['Lofer’s note (not a diagnosis)', e.outcome.lofersNote] : null
+  ].filter(Boolean);
+  const sr = hx('div', 'group'); sr.appendChild(hx('h3', '', 'Structured record'));
+  const dl = hx('dl', 'card deflist');
+  rows.forEach(([k, v]) => { dl.appendChild(hx('dt', '', k)); dl.appendChild(hx('dd', '', v)); });
+  sr.appendChild(dl); box.appendChild(sr);
+  if (e.intervention?.log?.length) box.appendChild(pressureChart(e));
+  const bm = hx('div', 'bodymap'); const cvs = hx('canvas'); bm.appendChild(cvs); box.appendChild(bm); requestAnimationFrame(() => drawBodyMap(cvs, [e]));
+  const act = hx('div', 'actions');
+  const again = hx('button', 'btn primary', 'Treat this area again'); again.onclick = () => treatAgain(e); act.appendChild(again);
+  box.appendChild(act);
+  const del = hx('button', 'linkbtn danger', 'Delete this episode');
+  del.onclick = () => {
+    if (del.dataset.arm) { Memory.remove(e.id); goBackPage(); renderHistory(); return; }
+    del.dataset.arm = '1'; del.textContent = 'Tap again to delete'; setTimeout(() => { delete del.dataset.arm; del.textContent = 'Delete this episode'; }, 3000);
+  };
+  box.appendChild(del);
+}
+// Pressure over the session (device-measured). One series, crosshair + tooltip.
+function pressureChart(e) {
+  const log = e.intervention.log.filter(x => x.modality !== 'heat');
+  const box = hx('div', 'chartbox'); box.appendChild(hx('h4', '', 'Pressure over the session · device-measured'));
+  if (log.length < 2) { box.appendChild(hx('p', 'hintx', 'Not enough readings to chart.')); return box; }
+  const S = log.map(x => x.pressure), T = log.map(x => x.t);
+  const W = 320, H = 150, L = 34, R = 10, TP = 10, B = 24;
+  const ymax = Math.max(10, Math.ceil((Math.max(...S) + 4) / 10) * 10), tmax = Math.max(...T) || 1;
+  const X = i => L + T[i] / tmax * (W - L - R), Y = v => TP + (1 - v / ymax) * (H - TP - B);
+  const line = S.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
+  const area = `${line}L${X(S.length - 1)},${Y(0)}L${X(0)},${Y(0)}Z`;
+  const ticks = [0, ymax / 2, ymax], xt = [0, tmax / 120, tmax / 60];
+  box.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Applied pressure in kilopascals over ${Math.round(tmax / 60)} minutes.">
+    <defs><linearGradient id="pgf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E4B598" stop-opacity=".28"/><stop offset="1" stop-color="#E4B598" stop-opacity="0"/></linearGradient></defs>
+    ${ticks.map(v => `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="rgba(243,235,226,.08)"/><text x="${L - 6}" y="${Y(v) + 3.5}" text-anchor="end" font-size="10" fill="#8C807A">${v}</text>`).join('')}
+    ${xt.map((m, i) => `<text x="${L + i / 2 * (W - L - R)}" y="${H - 6}" text-anchor="${['start', 'middle', 'end'][i]}" font-size="10" fill="#8C807A">${Math.round(m)} min</text>`).join('')}
+    <text x="${L}" y="${TP - 2}" font-size="9.5" fill="#6F6560">kPa</text>
+    <path d="${area}" fill="url(#pgf)"/><path d="${line}" fill="none" stroke="#E4B598" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <line class="xh" x1="0" x2="0" y1="${TP}" y2="${H - B}" stroke="rgba(243,235,226,.35)" visibility="hidden"/>
+    <circle class="xd" r="4.5" fill="#E4B598" stroke="#1B1817" stroke-width="2" visibility="hidden"/>
+    <rect x="${L}" y="${TP}" width="${W - L - R}" height="${H - TP - B}" fill="transparent"/></svg><div class="tip"></div>`);
+  const svg = box.querySelector('svg'), tip = box.querySelector('.tip'), xh = svg.querySelector('.xh'), xd = svg.querySelector('.xd');
+  const move = ev => {
+    const rc = svg.getBoundingClientRect(), sx = (ev.clientX - rc.left) / rc.width * W, tt = (sx - L) / (W - L - R) * tmax;
+    let i = 0; for (let k = 1; k < T.length; k++) if (Math.abs(T[k] - tt) < Math.abs(T[i] - tt)) i = k;
+    xh.setAttribute('x1', X(i)); xh.setAttribute('x2', X(i)); xd.setAttribute('cx', X(i)); xd.setAttribute('cy', Y(S[i]));
+    xh.setAttribute('visibility', 'visible'); xd.setAttribute('visibility', 'visible');
+    tip.textContent = `${Math.floor(T[i] / 60)}:${String(T[i] % 60).padStart(2, '0')} · ${Math.round(S[i])} kPa · ${Engine.MOD[log[i].modality].label.toLowerCase()} L${log[i].level}`;
+    const bx = box.getBoundingClientRect(), px = rc.left - bx.left + X(i) / W * rc.width;
+    tip.style.left = clamp(px - 70, 4, bx.width - 170) + 'px'; tip.style.top = (rc.top - bx.top + Y(S[i]) / H * rc.height - 38) + 'px'; tip.style.opacity = 1;
+  };
+  const hide = () => { tip.style.opacity = 0; xh.setAttribute('visibility', 'hidden'); xd.setAttribute('visibility', 'hidden'); };
+  svg.addEventListener('pointermove', move); svg.addEventListener('pointerdown', move); svg.addEventListener('pointerleave', hide);
+  return box;
+}
+
+/* ----- 9. SHARE WITH A PHYSIOTHERAPIST ----- */
+let reportOpts = { days: 90, group: null };
+function openReport(group) { reportOpts = { days: 90, group }; openPage('report'); renderReport(); }
+function renderReport() {
+  const box = $('#reportBody'); box.innerHTML = '';
+  const head = hx('div'); head.appendChild(hx('h1', 'ptitle', 'Care summary'));
+  head.appendChild(hx('p', 'plede', 'A short, factual summary to share with a physiotherapist or other healthcare professional.'));
+  box.appendChild(head);
+  const pick = hx('div', 'opts');
+  [[30, '30 days'], [90, '90 days'], [3650, 'All']].forEach(([d, l]) => { const b = hx('button', 'opt', l); b.setAttribute('aria-pressed', String(reportOpts.days === d)); b.onclick = () => { reportOpts.days = d; renderReport(); }; pick.appendChild(b); });
+  box.appendChild(pick);
+  const groups = Memory.insights().map(i => i.group);
+  if (groups.length > 1) {
+    const gp = hx('div', 'opts');
+    groups.forEach(g => { const b = hx('button', 'opt', N[g].label); b.setAttribute('aria-pressed', String((reportOpts.group || groups[0]) === g)); b.onclick = () => { reportOpts.group = g; renderReport(); }; gp.appendChild(b); });
+    box.appendChild(gp);
+  }
+  const r = Memory.report({ days: reportOpts.days, group: reportOpts.group || groups[0] });
+  if (!r) { box.appendChild(hx('p', 'empty', 'No episodes in this period.')); return; }
+  const doc = hx('article', 'doc');
+  doc.appendChild(hx('p', 'eyebrow', r.title));
+  const top = hx('dl', 'deflist');
+  [['Period', r.period], ['Primary region', r.region], ['Episodes', r.episodes]].forEach(([k, v]) => { top.appendChild(hx('dt', '', k)); top.appendChild(hx('dd', '', v)); });
+  doc.appendChild(top);
+  const section = (title, rows, tag) => {
+    if (!rows.length) return;
+    const s = hx('section'); const h = hx('h4', '', title); if (tag) h.appendChild(hx('span', 'src', tag)); s.appendChild(h);
+    const d = hx('dl', 'deflist'); rows.forEach(([k, v]) => { d.appendChild(hx('dt', '', k)); d.appendChild(hx('dd', '', v)); }); s.appendChild(d); doc.appendChild(s);
+  };
+  section('User-reported', r.userReported, 'from the user');
+  if (r.quotes.length) { const s = hx('section'); s.appendChild(hx('h4', '', 'In their words')); r.quotes.forEach(q => s.appendChild(hx('blockquote', '', `“${q}”`))); doc.appendChild(s); }
+  section('Treatment performed', r.treatment, 'Lofer sessions');
+  section('Device-measured', r.measured, 'sensors');
+  if (r.observations.length) { const s = hx('section'); const h = hx('h4', '', 'System-generated observations'); h.appendChild(hx('span', 'src', 'Lofer')); s.appendChild(h); const ul = hx('ul'); r.observations.forEach(o => ul.appendChild(hx('li', '', o))); s.appendChild(ul); doc.appendChild(s); }
+  doc.appendChild(hx('p', 'hintx', r.note));
+  box.appendChild(doc);
+  const act = hx('div', 'actions');
+  const copy = hx('button', 'btn primary', 'Copy summary');
+  copy.onclick = () => {
+    const text = Memory.reportText(r);
+    const fallback = () => { const ta = hx('textarea', 'copybox'); ta.value = text; box.appendChild(ta); ta.select(); toast('Select all and copy'); };
+    try { navigator.clipboard.writeText(text).then(() => toast('Summary copied'), fallback); } catch (_) { fallback(); }
+  };
+  act.appendChild(copy); box.appendChild(act);
+  box.appendChild(hx('p', 'hintx', 'In the iOS app this opens the share sheet, with PDF export.'));
+}
+
+async function treatAgain(e) {
+  pageStack.length = 0;
+  await goBody();
+  if (!G.ready) await readyP;
+  if (e.point) {
+    frame(N[e.symptom.areaId].parent, { turn: false });
+    selectLeaf(e.symptom.areaId, { p: new THREE.Vector3(...e.point), n: new THREE.Vector3(...(e.normal || [0, 0, 1])) }, { say: `Here's ${N[e.symptom.areaId].say} from last time. How is it today?` });
+  } else applyTarget({ id: e.symptom.areaId });
+}
+
+
+/* ================= profile page ================= */
+function renderProfile() {
+  const box = $('#profileBody'); box.innerHTML = '';
+  const head = hx('div'); head.appendChild(hx('h1', 'ptitle', profile.name ? `Hi, ${profile.name}` : 'Your profile'));
+  head.appendChild(hx('p', 'plede', 'Lofer uses these answers to pick the programme and pressure for each session. Change them any time.'));
+  box.appendChild(head);
+  const tune = hx('div', 'tune'); box.appendChild(tune);
+  const paintTune = () => {
+    // Ask the care engine + safety layer what a first session would look like for these answers.
+    const sym = { areaId: null, type: 'tightness', flags: [] }, tri = Safety.triage(sym, profile);
+    const sug = Engine.suggest({ sym, tri, profile, history: [] }), v = Safety.validate(sug.options[1], tri);
+    tune.innerHTML = '';
+    tune.appendChild(hx('p', 'eyebrow', 'A typical session for you'));
+    tune.appendChild(hx('b', '', `${v.plan.name} · ${v.plan.minutes} min · ${Engine.levelText(v.plan)}`));
+    tune.appendChild(hx('p', '', `${Engine.describe(v.plan)}.${tri.level === 'caution' ? ' Kept gentle because of your safety answers.' : ''}${v.notes.length ? ' ' + v.notes.join(' ') : ''}`));
+  };
+  paintTune();
+  const changed = () => { saveProfile(); paintTune(); };
+  for (const grp of QUESTIONS) {
+    const g = hx('div', 'group'); g.appendChild(hx('h3', '', grp.group));
+    const card = hx('div', 'card');
+    for (const q of grp.items) {
+      const row = hx('div', 'row');
+      if (q.type === 'toggle') {
+        const t = hx('div', 'tog'); t.appendChild(hx('span', '', q.label));
+        const sw = hx('button', 'switch'); sw.setAttribute('role', 'switch'); sw.setAttribute('aria-label', q.label); sw.setAttribute('aria-checked', String(!!profile[q.id]));
+        sw.onclick = () => { profile[q.id] = !profile[q.id]; sw.setAttribute('aria-checked', String(profile[q.id])); changed(); };
+        t.appendChild(sw); row.appendChild(t);
+      } else if (q.type === 'text') {
+        const lab = hx('label', '', q.label); lab.htmlFor = 'pf-' + q.id; row.appendChild(lab);
+        const inp = hx('input'); inp.type = 'text'; inp.id = 'pf-' + q.id; inp.placeholder = q.placeholder || ''; inp.value = profile[q.id] || ''; inp.autocomplete = 'given-name';
+        inp.oninput = () => { profile[q.id] = inp.value.trim(); saveProfile(); };
+        row.appendChild(inp);
+      } else {
+        row.appendChild(hx('span', 'rl', q.label));
+        if (q.hint) row.appendChild(hx('p', 'hintx', q.hint));
+        const opts = hx('div', 'opts');
+        for (const o of q.opts) {
+          const b = hx('button', 'opt', o);
+          const on = () => q.type === 'many' ? profile[q.id].includes(o) : profile[q.id] === o;
+          b.setAttribute('aria-pressed', String(on()));
+          b.onclick = () => {
+            if (q.type === 'many') {
+              let v = profile[q.id].includes(o) ? profile[q.id].filter(x => x !== o) : [...profile[q.id], o];
+              if (o === 'None right now' && v.includes(o)) v = [o]; else v = v.filter(x => x !== 'None right now' || o === 'None right now');
+              profile[q.id] = v;
+            } else profile[q.id] = profile[q.id] === o && !['pressure', 'length'].includes(q.id) ? null : o;
+            opts.querySelectorAll('.opt').forEach(x => x.setAttribute('aria-pressed', String(q.type === 'many' ? profile[q.id].includes(x.textContent) : profile[q.id] === x.textContent)));
+            changed();
+          };
+          opts.appendChild(b);
+        }
+        row.appendChild(opts);
+      }
+      card.appendChild(row);
+    }
+    g.appendChild(card);
+    if (grp.note) g.appendChild(hx('p', 'hintx', grp.note));
+    box.appendChild(g);
+  }
+  const dev = hx('div', 'group'); dev.appendChild(hx('h3', '', 'Device'));
+  const dc = hx('div', 'card'); const dr = hx('div', 'row');
+  dr.innerHTML = '<div class="tog"><span>Lofer wearable</span><span style="color:var(--muted);font-size:13px">Simulated</span></div><p class="hintx">No hardware yet. Sessions run on a simulated device and are recorded the same way a real one will be.</p>';
+  dc.appendChild(dr); dev.appendChild(dc); box.appendChild(dev);
+  const data = hx('div', 'group'); data.appendChild(hx('h3', '', 'Your data'));
+  const armed = (btn, label, fn) => { btn.onclick = () => { if (btn.dataset.arm) { fn(); return; } btn.dataset.arm = '1'; btn.textContent = 'Tap again to confirm'; setTimeout(() => { delete btn.dataset.arm; btn.textContent = label; }, 3000); }; };
+  const b1 = hx('button', 'linkbtn', 'Restore sample episodes'); armed(b1, 'Restore sample episodes', () => { Memory.restoreSamples(); toast('Sample episodes restored'); renderProfile(); });
+  const b2 = hx('button', 'linkbtn danger', 'Clear Body Memory'); armed(b2, 'Clear Body Memory', () => { Memory.clear(); toast('Body Memory cleared'); renderProfile(); });
+  const rl = Memory.routinesList();
+  if (rl.length) {
+    const rg = hx('div', 'group'); rg.appendChild(hx('h3', '', 'Saved routines'));
+    const rc = hx('div', 'card');
+    rl.forEach(r => { const row = hx('div', 'row'); const t = hx('div', 'tog'); t.appendChild(hx('span', '', r.name));
+      const x = hx('button', 'linkbtn danger', 'Remove'); x.onclick = () => { Memory.removeRoutine(r.key); renderProfile(); }; t.appendChild(x);
+      row.appendChild(t); row.appendChild(hx('p', 'hintx', Engine.describe(r.plan))); rc.appendChild(row); });
+    rg.appendChild(rc); box.appendChild(rg);
+  }
+  const b3 = hx('button', 'linkbtn danger', 'Reset profile answers'); armed(b3, 'Reset profile answers', () => { profile = { ...DEFAULT_PROFILE }; saveProfile(); renderProfile(); });
+  data.append(b1, b2, b3); box.appendChild(data);
+  const design = hx('div', 'group'); design.appendChild(hx('h3', '', 'Design (temporary)'));
+  const ty = hx('button', 'linkbtn', 'Typography candidates'); ty.onclick = () => openPage('typography'); design.appendChild(ty); box.appendChild(design);
+}
+
+/* ================= typography comparison (temporary dev screen) =================
+   Same Lofer content in each candidate. Nothing here changes the app's font
+   permanently; "Preview in app" applies it until the page is reloaded. */
+const FONT_CANDIDATES = [
+  { key: 'A', name: 'Avenir Next', stack: '"Avenir Next","Avenir","Nunito Sans",system-ui,sans-serif', note: 'Warm, premium, human. Built into Apple devices; elsewhere a fallback shows.' },
+  { key: 'B', name: 'Manrope', stack: '"Manrope",system-ui,sans-serif', note: 'Modern, a little technological, still soft.' },
+  { key: 'C', name: 'DM Sans', stack: '"DM Sans",system-ui,sans-serif', note: 'Friendly, readable, approachable.' },
+  { key: 'D', name: 'Söhne → Hanken Grotesk', stack: '"Söhne","Hanken Grotesk",system-ui,sans-serif', note: 'Söhne is a paid font. Hanken Grotesk is the closest free stand-in.' },
+  { key: 'E', name: 'Circular → Plus Jakarta Sans', stack: '"Circular","Plus Jakarta Sans",system-ui,sans-serif', note: 'Circular is a paid font. Plus Jakarta Sans is the closest free stand-in.' },
+  { key: 'F', name: 'Instrument Sans', stack: '"Instrument Sans",system-ui,sans-serif', note: 'Modern and distinctive, not aggressively technical.' },
+  { key: '·', name: 'Figtree (current)', stack: '"Figtree",system-ui,sans-serif', note: 'What the prototype uses today, for comparison.' }];
+let previewFont = null;
+function renderTypography() {
+  const box = $('#typographyBody'); box.innerHTML = '';
+  const head = hx('div'); head.appendChild(hx('h1', 'ptitle', 'Typography'));
+  head.appendChild(hx('p', 'plede', 'The same Lofer content in each candidate. Nothing is changed permanently. “Preview in app” applies a font until you reload.'));
+  box.appendChild(head);
+  for (const f of FONT_CANDIDATES) {
+    const c = hx('article', 'typo-card');
+    const nm = hx('div', 'tc-name'); nm.appendChild(hx('b', '', `${f.key}. ${f.name}`)); nm.appendChild(hx('span', '', f.note)); c.appendChild(nm);
+    const sample = hx('div'); sample.style.fontFamily = f.stack; sample.style.display = 'grid'; sample.style.gap = '10px';
+    sample.appendChild(hx('span', 't-brand', 'Lofer'));
+    sample.appendChild(hx('p', 't-q', 'How is your body feeling today?'));
+    sample.appendChild(hx('p', 't-title', 'Right shoulder'));
+    sample.appendChild(hx('p', 't-body', 'Tell me what’s been going on. You can describe it however feels natural.'));
+    const row = hx('div', 't-row'); const btn = hx('button', 't-btn', 'Continue'); btn.style.fontFamily = f.stack; row.appendChild(btn); row.appendChild(hx('span', 't-meta', '10 min · Gentle recovery'));
+    sample.appendChild(row); c.appendChild(sample);
+    const tryB = hx('button', 'linkbtn tc-try', previewFont === f.stack ? 'Previewing in app · tap to undo' : 'Preview in app');
+    tryB.onclick = () => { previewFont = previewFont === f.stack ? null : f.stack; document.documentElement.style.setProperty('--ui', previewFont || '"Figtree",-apple-system,"SF Pro Text",system-ui,sans-serif'); renderTypography(); };
+    c.appendChild(tryB);
+    box.appendChild(c);
+  }
+}
+
+/* ================= page navigation ================= */
+const pageStack = [];
+function openPage(name) {
+  if (state.scene !== name) pageStack.push(state.scene);
+  if (name === 'profile') renderProfile();
+  if (name === 'records') renderHistory();
+  if (name === 'typography') renderTypography();
+  show(name);
+  const pg = SCENES[name]; pg.classList.remove('scrolled'); pg.querySelector('.pscroll').scrollTop = 0;
+}
+function goBackPage() {
+  const prev = pageStack.pop() || 'home';
+  if (prev === 'home') { goHome(); return; }
+  if (prev === 'records') renderHistory();
+  show(prev);
+}
+
+/* ================= scenes ================= */
+const app = $('#app');
+const SCENES = { home: $('#home'), body: $('#bodyScene'), profile: $('#profile'), records: $('#records'), record: $('#record'), report: $('#report'), typography: $('#typography') };
+let readyResolve; const readyP = new Promise(r => readyResolve = r);
+function show(name) {
+  state.scene = name;
+  for (const k in SCENES) SCENES[k].classList.toggle('on', k === name);
+  cv.classList.toggle('docked', name === 'body');
+  cv.classList.toggle('away', name !== 'home' && name !== 'body');
+  glCanvas.classList.toggle('on', name === 'body');
+  app.classList.toggle('bodymode', name === 'body');
+  updateStep();
+}
+const GREETS = ['How is your body feeling today?', 'Tell me what’s been going on and how you’re feeling.', 'Anything bothering you today?'];
+let gi = 0, gTimer = null;
+function startGreeting() {
+  stopGreeting();
+  gTimer = setInterval(() => {
+    if (state.scene !== 'home' || listening) return;
+    gi = (gi + 1) % GREETS.length; const el = $('#greet');
+    el.classList.add('swap'); setTimeout(() => { el.textContent = GREETS[gi]; el.classList.remove('swap'); }, 280);
+  }, 5800);
+}
+const stopGreeting = () => { clearInterval(gTimer); gTimer = null; };
+function goHome() {
+  Object.assign(state, { focus: 'body', cand: null, sel: null, lit: [], pendingSide: null, care: null, hover: null, flow: null });
+  Device.stop(); clearPatches(); setLimbView(null);
+  closeType(); show('home'); cv.classList.add('show');
+  gi = 0; $('#greet').textContent = GREETS[0]; $('#heard').textContent = ''; $('#ctx').hidden = true; $('#sim').hidden = true;
+  startGreeting();
+}
+// keepFlow: the user already started telling their story on the home screen.
+async function goBody(heardText, { keepFlow = false } = {}) {
+  closeType(); stopGreeting();
+  const flow = keepFlow ? state.flow : null;
+  Object.assign(state, { focus: 'body', cand: null, sel: null, lit: [], pendingSide: null, care: null, hover: null, flow });
+  if (!state.flow) startAssessment('locate');        // touch route: the body comes first, the story after
+  setLimbView(null);
+  Device.stop(); clearPatches();
+  $('#dheard').textContent = heardText ? `“${heardText}”` : '';
+  $('#dmsg').textContent = heardText ? 'Let me take a look.' : "Show me where it's bothering you.";
+  $('#hint3d').style.opacity = 1;
+  show('body');
+  if (!G.ok) {
+    $('#loading').hidden = false; $('#loading').textContent = "3D isn't available on this device. Use the options below.";
+  } else if (!G.ready) $('#loading').hidden = false;
+  if (G.ready) { cam.d = 5.4; cam.th = .9; cam.ph = .15; frame('body'); }
+  refresh();
+  await wait(700);
+}
+
+/* ================= intro ================= */
+const splash = $('#splash'), fxc = $('#fx'), fx = fxc.getContext('2d');
+let parts = [], fxT0 = -1;
+function intro() {
+  closeType(); stopGreeting();
+  state.scene = 'splash'; for (const k in SCENES) SCENES[k].classList.remove('on');
+  cv.classList.remove('show', 'docked'); glCanvas.classList.remove('on'); app.classList.remove('bodymode'); app.classList.add('intro');
+  splash.classList.remove('gone', 'play', 'fadebg'); void splash.offsetWidth; splash.classList.add('play');
+  clearTimeout(intro.a); clearTimeout(intro.b); clearTimeout(intro.c);
+  parts = []; fxT0 = performance.now() + (RM ? 0 : 2250);
+  intro.a = setTimeout(() => { splash.classList.add('fadebg'); app.classList.remove('intro'); }, RM ? 200 : 2500);
+  intro.b = setTimeout(endIntro, RM ? 600 : 3500);
+  updateStep();
+}
+function endIntro() {
+  if (state.scene !== 'splash') return;
+  clearTimeout(intro.a); clearTimeout(intro.b);
+  splash.classList.add('gone', 'fadebg'); app.classList.remove('intro');
+  goHome();
+}
+function drawFx(now) {
+  const W = fxc.clientWidth, H = fxc.clientHeight, dpr = Math.min(2, devicePixelRatio || 1);
+  if (fxc.width !== Math.round(W * dpr)) { fxc.width = Math.round(W * dpr); fxc.height = Math.round(H * dpr); }
+  fx.setTransform(dpr, 0, 0, dpr, 0, 0); fx.clearRect(0, 0, W, H);
+  if (fxT0 < 0 || now < fxT0) return;
+  const k = (now - fxT0) / 1300;
+  if (k < 1) {
+    const bz = u => { const a = [W * .5, H * .44], b = [W * .45, H * .2], c = [W * .92, H * .12]; const m = 1 - u; return [m * m * a[0] + 2 * m * u * b[0] + u * u * c[0], m * m * a[1] + 2 * m * u * b[1] + u * u * c[1]]; };
+    for (let i = 0; i < 4; i++) { const [x, y] = bz(Math.min(1, k * 1.1)); parts.push({ x: x + (Math.random() - .5) * 10, y: y + (Math.random() - .5) * 10, life: 1, s: .6 + Math.random() * 1.6 }); }
+  }
+  fx.globalCompositeOperation = 'lighter';
+  for (const p of parts) {
+    p.life -= .016; p.y -= .15; if (p.life <= 0) continue;
+    const g = fx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.s * 5);
+    g.addColorStop(0, `rgba(255,232,214,${p.life * .9})`); g.addColorStop(1, 'rgba(228,181,152,0)');
+    fx.fillStyle = g; fx.beginPath(); fx.arc(p.x, p.y, p.s * 5, 0, 7); fx.fill();
+  }
+  fx.globalCompositeOperation = 'source-over';
+  parts = parts.filter(p => p.life > 0);
+  if (k > 1 && !parts.length) fxT0 = -1;
+}
+
+/* ================= wiring ================= */
+splash.addEventListener('click', endIntro);
+$('#mic').onclick = () => listen();
+$('#dmic').onclick = () => listen();
+cv.addEventListener('click', () => listen());
+cv.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); listen(); } });
+$('#kbd').onclick = () => openType(); $('#dkbd').onclick = () => openType();
+$('#touch').onclick = async () => { await goBody(); agentSay("Show me where it's bothering you."); };
+$('#back').onclick = goBack;
+$('#resetView').onclick = resetView;
+document.querySelectorAll('#views button').forEach(b => b.onclick = () => setLimbView(limbView === b.dataset.v ? null : b.dataset.v));
+$('#openTypo').onclick = () => { if (state.scene === 'splash') endIntro(); setTimeout(() => openPage('typography'), state.scene === 'splash' ? 700 : 0); };
+if (location.hash === '#typography') setTimeout(() => { endIntro(); openPage('typography'); }, 400);
+$('#openRecords').onclick = () => openPage('records');
+$('#openProfile').onclick = () => openPage('profile');
+document.querySelectorAll('[data-back]').forEach(b => b.onclick = goBackPage);
+document.querySelectorAll('.page .pscroll').forEach(s => s.addEventListener('scroll', () => s.parentElement.classList.toggle('scrolled', s.scrollTop > 40), { passive: true }));
+$('#replay').onclick = intro;
+document.querySelectorAll('.try .say').forEach(b => b.onclick = () => {
+  const go = () => listen(b.textContent.trim());
+  if (state.scene === 'splash') { endIntro(); setTimeout(go, 700); } else go();
+});
+
+/* ================= main loop ================= */
+const dprO = Math.min(2, devicePixelRatio || 1);
+cv.width = cv.height = Math.round(300 * dprO);
+const tagpin = $('#tagpin'), tagText = tagpin.querySelector('span');
+let last = performance.now(), sizeW = 0, sizeH = 0;
+function loop(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  drawOrb(now); drawFx(now);
+  if (state.scene === 'body') { dockOrb(); pulsePatches(now); }
+  if (G.ready && (state.scene === 'body' || glCanvas.classList.contains('on'))) render3d(now, dt);
+  requestAnimationFrame(loop);
+}
+let dockX = -1, dockY = -1;
+function dockOrb() {
+  const slot = $('#dmic').getBoundingClientRect(), a = app.getBoundingClientRect();
+  if (!slot.width) return;
+  const x = Math.round(slot.left + slot.width / 2 - a.left), y = Math.round(slot.top + slot.height / 2 - a.top);
+  if (Math.abs(x - dockX) > 1 || Math.abs(y - dockY) > 1) { dockX = x; dockY = y; cv.style.setProperty('--ox', x + 'px'); cv.style.setProperty('--oy', y + 'px'); }
+}
+let lastBand = { top: 0, Hv: 0, behind: false };
+function render3d(now, dt) {
+  const W = glCanvas.clientWidth, H = glCanvas.clientHeight;
+  if (W !== sizeW || H !== sizeH) { sizeW = W; sizeH = H; renderer.setSize(W, H, false); camera.aspect = W / H; frame(state.focus, { turn: false }); }
+  const k = RM ? 1 : 1 - Math.exp(-dt * 3.2);
+  if (!dragging) cam.th = lerp(cam.th, camT.th, k);
+  cam.ph = lerp(cam.ph, camT.ph, k); cam.d = lerp(cam.d, camT.d, k); cam.t.lerp(camT.t, k);
+  camera.position.set(cam.t.x + cam.d * Math.sin(cam.th) * Math.cos(cam.ph), cam.t.y + cam.d * Math.sin(cam.ph), cam.t.z + cam.d * Math.cos(cam.th) * Math.cos(cam.ph));
+  camera.lookAt(cam.t);
+  const b = band();
+  if (Math.abs(b.top - lastBand.top) > 10 || Math.abs(b.Hv - lastBand.Hv) > 10 || b.behind !== lastBand.behind) { lastBand = b; if (!dragging) frame(state.focus, { turn: false }); }
+  camera.setViewOffset(W, H, 0, H / 2 - (b.top + b.Hv / 2), W, H);
+  const ks = 1 - Math.exp(-dt * 6);
+  for (let i = 0; i < 128; i++) uDisp[i] = lerp(uDisp[i], uTarget[i], ks);
+  const U = skinMat.uniforms;
+  U.uTime.value = now / 1000;
+  const depth = pathTo(state.focus).length - 1;                     // Body 0 › Arm 1 › Wrist 2 › …
+  U.uDetail.value = lerp(U.uDetail.value, [0, .25, .7, 1][Math.min(depth, 3)], ks);
+  updateBodyTools(b);
+  const pt = state.sel && !(state.care && !state.care.point) ? state.sel : null;
+  U.uPointOn.value = lerp(U.uPointOn.value, pt ? 1 : 0, ks);
+  if (pt) { U.uPoint.value.lerp(pt.p, U.uPointOn.value < .05 ? 1 : ks * 1.5); }
+  marker.visible = !!pt;
+  if (pt) {
+    marker.position.copy(U.uPoint.value).addScaledVector(pt.n, .004);
+    marker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), pt.n);
+    const ph = (now / 2200) % 1; ring.scale.setScalar(1 + ph * 1.6); ring.material.opacity = .9 * (1 - ph);
+  }
+  if (scanT0 > 0) {
+    const s = (now - scanT0) / 1500;
+    U.uScanOn.value = s < 1 ? Math.sin(Math.PI * s) : 0; U.uScanY.value = 1.8 - s * 1.9;
+    if (s >= 1) scanT0 = -1;
+  }
+  // floating label for the chosen area
+  const tagId = state.sel ? state.sel.id : state.cand;
+  let tp = null;
+  if (state.sel) tp = state.sel.p; else if (state.cand) { if (!tagpin.dataset.for || tagpin.dataset.for !== state.cand) { const r = repPoint(state.cand); tagpin.dataset.for = state.cand; tagpin._p = r && r.p; } tp = tagpin._p; }
+  if (tp && tagId) {
+    const v = tp.clone().project(camera);
+    const x = (v.x * .5 + .5) * W, y = (-v.y * .5 + .5) * H;
+    tagText.textContent = N[tagId].label;
+    tagpin.style.transform = `translate(${Math.round(x + 14)}px, ${Math.round(y - 14)}px)`;
+    tagpin.classList.toggle('on', y > b.top - 10 && y < H - b.bot + 10);
+  } else { tagpin.classList.remove('on'); tagpin.dataset.for = ''; }
+  renderer.render(scene, camera);
+}
+
+/* ================= boot ================= */
+refresh();
+requestAnimationFrame(loop);
+startMesh();
+intro();
+})();
+</script>
