@@ -12,7 +12,7 @@ struct HomeView: View {
             HStack {
                 CircleIconButton(systemName: "clock.arrow.circlepath", label: "Body history") { app.path.append(.history) }
                 Spacer()
-                PebbleLogo().frame(width: 46)
+                LoferMark().frame(width: 30, height: 30)
                 Spacer()
                 CircleIconButton(systemName: "person", label: "Profile and settings") { app.path.append(.profile) }
             }

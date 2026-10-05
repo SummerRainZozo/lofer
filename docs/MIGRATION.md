@@ -15,7 +15,7 @@
 
 | Artifact feature | iOS implementation | Status | Notes |
 |---|---|---|---|
-| Logo intro (appear, breathe, float away, particle trail, horizon) | `Features/Splash/SplashView.swift`, `Components/PebbleLogo.swift`, `App/RootView.swift` (`HorizonGlow`) | ✅ Recreated in SwiftUI | Tap to skip, as before |
+| Logo intro (appear, breathe, float away, particle trail, horizon) | `Features/Splash/SplashView.swift`, `Components/LoferMark.swift`, `App/RootView.swift` (`HorizonGlow`) | ✅ Recreated in SwiftUI | Tap to skip, as before |
 | Dark Lofer palette | `DesignSystem/Colors.swift` | ✅ Migrated | Same hex values as the brand board |
 | Typography (Figtree UI, Quicksand wordmark) | `DesignSystem/Typography.swift`, `Resources/Fonts/` | ✅ Migrated | Fonts bundled (SIL Open Font License) |
 | Typography comparison screen | `Features/TypographyLab/TypographyLabView.swift` | ✅ Recreated | Avenir Next is built into iOS. Söhne and Circular are paid, so free stand-ins are shown (labelled). The final font is still undecided |
