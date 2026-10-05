@@ -5,6 +5,9 @@ struct TriageResult {
     enum Level: String { case ok, caution, stop }
     var level: Level
     var urgent: Bool
+    /// Stopped only because information is missing (a "not sure" or skipped safety answer),
+    /// not because of a reported warning sign. Lofer defers rather than clears.
+    var deferred = false
     var reasons: [String]
     var guidance: String
     var maxIntensity: Int
@@ -31,16 +34,23 @@ enum SafetyValidator {
     static let guidanceUrgent = "Please get urgent medical help now. If symptoms are severe or getting worse quickly, call your local emergency number."
     static let guidanceStop = "Please have it looked at by a GP or physiotherapist before using Lofer on this area."
     static let guidanceCaution = "I'll keep things gentle and short, and check in more often."
+    static let guidanceDeferred = "I don't have enough information to recommend a session here. If you notice numbness, tingling, swelling or weakness, have it checked by a GP or physiotherapist."
     private static let noEMSArea = "neck_f|face|_neckside|chest|upper_abs|lower_abs|abdomen|headneck|backhead"
     private static let sensitive = "_kn_|_el_|_wr_|_ankle|_achilles|neck|face|backhead|_palm|_backhand|_thumb|_fingers|_heel|_sole|_foottop"
 
     static func triage(_ s: SymptomSnapshot, profile: UserProfile) -> TriageResult {
         var reasons: [String] = []; var level = TriageResult.Level.ok; var urgent = false
+        var missingOnly = true   // every stop reason so far is missing information
         let area = s.areaId.map { BodyAtlas.shared.path(to: $0).joined(separator: " ") } ?? ""
         func bump(_ l: TriageResult.Level, _ why: String) {
             reasons.append(why)
             if l == .stop || (l == .caution && level == .ok) { level = l }
+            if l == .stop { missingOnly = false }
         }
+        // Unanswered warning-sign checks: never treated as a "no".
+        for why in s.safetyUnresolved { reasons.append(why); level = .stop }
+        // A pause stated after an earlier session is enforced, not just shown.
+        if s.automaticCarePaused { bump(.stop, "Automatic sessions are paused for this area after an earlier session") }
         for f in s.flags {
             switch f.level { case .urgent: urgent = true; bump(.stop, f.label); case .stop: bump(.stop, f.label); case .caution: bump(.caution, f.label) }
         }
@@ -63,9 +73,10 @@ enum SafetyValidator {
         if profile.implant { bump(.caution, "Implanted device (from your profile)") }
         if let id = s.areaId, id.has("neck_f|face") { bump(.caution, "Sensitive area") }
         let areaIds = area + " " + (s.areaId ?? "")
+        let deferred = level == .stop && !urgent && missingOnly
         return TriageResult(
-            level: level, urgent: urgent, reasons: reasons,
-            guidance: urgent ? guidanceUrgent : level == .stop ? guidanceStop : level == .caution ? guidanceCaution : "",
+            level: level, urgent: urgent, deferred: deferred, reasons: reasons,
+            guidance: urgent ? guidanceUrgent : deferred ? guidanceDeferred : level == .stop ? guidanceStop : level == .caution ? guidanceCaution : "",
             maxIntensity: level == .caution ? 2 : ((s.areaId ?? "").has(sensitive) ? 3 : maxIntensity),
             maxMinutes: level == .caution ? 10 : maxMinutes,
             noEMS: profile.implant || profile.pregnant || areaIds.has(noEMSArea) || level == .caution,

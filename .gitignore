@@ -33,6 +33,7 @@ Package.resolved
 # ---- Secrets: NEVER commit keys or tokens ----
 .env
 .env.*
+!.env.example
 *.env
 Secrets.swift
 Secrets.xcconfig
@@ -44,3 +45,6 @@ GoogleService-Info.plist
 # ---- Misc ----
 *.log
 node_modules/
+
+# ---- Website (Vite) build output ----
+website/dist/

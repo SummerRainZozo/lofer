@@ -92,11 +92,19 @@ struct ClarifySheet: View {
                 SheetHeader(sub: "Talk or type, however feels natural. Or start with how it feels:")
                 FlowLayout { ForEach([("Tight", "tightness"), ("Sore", "soreness"), ("Achy", "ache"), ("Sharp", "sharp")], id: \.1) { o in Chip(title: o.0) { model.answerChip("sensation", o.1) } } }
             } else if q.multi {
+                // The safety check. "None of these" is a "no"; "Not sure" and "Skip" are kept separate
+                // and never count as a "no". Continue needs at least one sign picked.
                 FlowLayout { ForEach(q.options, id: \.1) { o in Chip(title: o.0, selected: picked.contains(o.1)) { if picked.contains(o.1) { picked.remove(o.1) } else { picked.insert(o.1) } } } }
                 HStack(spacing: 8) {
                     LoferButton(title: "None of these") { model.answerSafety([]) }
                     LoferButton(title: "Continue", primary: true) { model.answerSafety(Array(picked)) }
+                        .disabled(picked.isEmpty).opacity(picked.isEmpty ? 0.45 : 1)
                 }
+                HStack(spacing: 8) {
+                    Button("Not sure") { model.answerSafetyUnsure() }.modifier(SmallPill())
+                    Button("Skip") { model.skipSafety() }.modifier(SmallPill())
+                }
+                .frame(maxWidth: .infinity)
             } else {
                 FlowLayout { ForEach(q.options, id: \.1) { o in Chip(title: o.0) { model.answerChip(q.field, o.1) } } }
             }

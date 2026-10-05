@@ -61,7 +61,7 @@ enum AssessmentService {
         if let ty = r.type, ty != "pain" {
             if A.sensation == nil || ["pain", "unclear"].contains(A.sensation!) || expect == "sensation" { set(\.sensation, ty, "sensation") }
         } else if r.type == "pain" && A.sensation == nil { set(\.sensation, "pain", "sensation") }
-        if expect == "sensation" && r.type == nil && t.trimmingCharacters(in: .whitespaces).count > 2 {
+        if expect == "sensation" && r.type == nil && !r.unsure && !r.skip && t.trimmingCharacters(in: .whitespaces).count > 2 {
             A.sensation = "other"; A.sensationWords = r.raw.trimmingCharacters(in: .whitespaces); learned.append("sensation")
         }
         if let s = r.severity, expect == "severity" || r.isDescriptive { set(\.severity, s, "severity") }
@@ -72,18 +72,47 @@ enum AssessmentService {
         for x in r.triggers where !A.movementTriggers.contains(x) { A.movementTriggers.append(x); learned.append("movementTriggers") }
         if r.previous { set(\.previousEpisodes, true, "previousEpisodes") }
         for f in r.flags where !A.safetyFlags.contains(where: { $0.label == f.label }) { A.safetyFlags.append(f); learned.append("safetyFlags") }
-        if expect == "triggers" && r.triggers.isEmpty {
+        for f in r.uncertainFlags where !A.uncertainSigns.contains(where: { $0.label == f.label }) && !A.safetyFlags.contains(where: { $0.label == f.label }) {
+            A.uncertainSigns.append(f); learned.append("uncertainSigns")
+        }
+        if expect == "triggers" && r.triggers.isEmpty && !r.unsure {
             if t.has("all the time|most of the time|constant|always there") { set(\.symptomsAtRest, "present", "symptomsAtRest") }
-            else if r.deny || t.has("nothing|none|not really|not sure|no idea|don'?t know") { A.movementTriggers.append("Nothing in particular"); learned.append("movementTriggers") }
+            else if r.deny || t.has("nothing|none|not really") { A.movementTriggers.append("Nothing in particular"); learned.append("movementTriggers"); record(&A, "triggers", .negative, &learned) }
         }
-        if expect == "previous" {
+        if expect == "previous" && !r.unsure {
             if t.has("\\b(yes|yeah|before|again|usually|comes and goes)\\b") { set(\.previousEpisodes, true, "previousEpisodes") }
-            else if r.deny || t.has("new|first time|never") { set(\.previousEpisodes, false, "previousEpisodes") }
+            else if r.deny || t.has("new|first time|never") { set(\.previousEpisodes, false, "previousEpisodes"); record(&A, "previous", .negative, &learned) }
         }
-        if expect == "safety" && (r.deny || t.has("none|nothing|^\\s*no\\s*$")) { learned.append("safetyChecked") }
+        if expect == "safety" { recordSafety(&A, r, t, &learned) }
+        else if let e = expect, A.answers[e] == nil, let keys = answerKeys[e] {
+            // Only a reply that addresses the question answers it. Mentioning something
+            // else ("it started yesterday" when asked how it feels) leaves it open.
+            if !Set(keys).isDisjoint(with: learned) { record(&A, e, .affirmative, &learned) }
+            else if r.skip { record(&A, e, .skipped, &learned) }
+            else if r.unsure { record(&A, e, .uncertain, &learned) }
+        }
         if r.bilateral { set(\.laterality, "both", "laterality") }
         refreshMeta(&A)
         return learned
+    }
+
+    /// Which learned fields count as an answer to each question.
+    static let answerKeys: [String: [String]] = [
+        "sensation": ["sensation"], "triggers": ["movementTriggers", "symptomsAtRest"],
+        "onset": ["onset", "activityContext", "onsetType"], "severity": ["severity"], "previous": ["previousEpisodes"],
+    ]
+    /// Records how a question was answered. `learned` gets "answered:<field>" so the caller can count it.
+    static func record(_ A: inout AssessmentState, _ field: String, _ status: AnswerStatus, _ learned: inout [String]) {
+        guard A.answers[field] == nil else { return }
+        A.answers[field] = status; learned.append("answered:\(field)")
+    }
+    /// The safety question ("any numbness, tingling, swelling or weakness?"), answered in words.
+    /// A reported sign wins; then "not sure"; then "skip"; only a clear "no" rules signs out.
+    static func recordSafety(_ A: inout AssessmentState, _ r: ParsedUtterance, _ t: String, _ learned: inout [String]) {
+        if r.flags.contains(where: { $0.level != .caution }) { record(&A, "safety", .affirmative, &learned) }
+        else if !r.uncertainFlags.isEmpty || r.unsure { record(&A, "safety", .uncertain, &learned) }
+        else if r.skip { record(&A, "safety", .skipped, &learned) }
+        else if !r.negatedFlags.isEmpty || r.deny || t.has("\\b(none|nothing|neither)\\b") { record(&A, "safety", .negative, &learned) }
     }
 
     @discardableResult
@@ -108,19 +137,22 @@ enum AssessmentService {
         case "previous": A.previousEpisodes = value == "true"
         default: break
         }
-        A.asked.insert(field)
+        A.answers[field] = (field == "triggers" && value == "__none") || (field == "previous" && value == "false") ? .negative : .affirmative
         refreshMeta(&A)
     }
+    /// Tapped answers to the safety question. An empty list is a deliberate "None of these".
     static func addSafetyAnswers(_ A: inout AssessmentState, _ labels: [String]) {
-        for l in labels { A.safetyFlags.append(SafetyFlag(level: .stop, label: l)) }
-        A.asked.insert("safety"); refreshMeta(&A)
+        for l in labels where !A.safetyFlags.contains(where: { $0.label == l }) { A.safetyFlags.append(SafetyFlag(level: .stop, label: l)) }
+        A.answers["safety"] = labels.isEmpty ? .negative : .affirmative; refreshMeta(&A)
     }
+    /// "Not sure" or "Skip" on the safety question. Neither rules anything out.
+    static func setSafety(_ A: inout AssessmentState, _ status: AnswerStatus) { A.answers["safety"] = status; refreshMeta(&A) }
 
     // MARK: what's missing → the one question worth asking
     /// A "caution" word like "sharp" is a reason TO ask; only a serious sign already heard makes it unnecessary.
     static func needsSafety(_ A: AssessmentState) -> Bool {
-        guard !A.asked.contains("safety"), !A.safetyFlags.contains(where: { $0.level != .caution }) else { return false }
-        return ["sharp", "burning"].contains(A.sensation ?? "") || (A.severity ?? 0) >= 7 || (A.onsetType == "sudden" && A.activityContext == nil)
+        guard !A.isAnswered("safety"), !A.safetyFlags.contains(where: { $0.level != .caution }) else { return false }
+        return !A.uncertainSigns.isEmpty || ["sharp", "burning"].contains(A.sensation ?? "") || (A.severity ?? 0) >= 7 || (A.onsetType == "sudden" && A.activityContext == nil)
             || A.progression == "worsening" || A.onset == "months ago" || A.symptomsAtRest == "present"
     }
     static func missing(_ A: AssessmentState, historyCount: Int = 0) -> [String] {
@@ -138,11 +170,11 @@ enum AssessmentService {
     static func refreshMeta(_ A: inout AssessmentState) {
         let m = missing(A); A.missingFields = m
         let core = ["region", "sensation", "triggers", "onset", "severity"]
-        A.confidence = 1 - Double(core.filter { m.contains($0) }.count) / Double(core.count)
+        A.fieldCompleteness = 1 - Double(core.filter { m.contains($0) }.count) / Double(core.count)
     }
 
     static func nextQuestion(_ A: AssessmentState, historyCount: Int) -> AssessmentQuestion? {
-        let m = missing(A, historyCount: historyCount).filter { !A.asked.contains($0) || $0 == "region" }
+        let m = missing(A, historyCount: historyCount).filter { !A.isAnswered($0) || $0 == "region" }
         if m.contains("story") { return AssessmentQuestion(field: "story", text: "Tell me what's been going on and how it feels.", hint: "Talk or type, however feels natural.") }
         if m.contains("region") { return AssessmentQuestion(field: "region", text: "Where are you feeling it? Tell me, or show me on your body.") }
         let capped = A.questionsAsked >= maxFollowUps
@@ -214,7 +246,15 @@ enum AssessmentService {
                         type: ["other", "unclear"].contains(A.sensation ?? "") ? "pain" : A.sensation,
                         severity: A.severity, onset: A.onset, onsetType: A.onsetType, activity: A.activityContext,
                         triggers: A.movementTriggers, atRest: A.symptomsAtRest, progression: A.progression,
-                        previous: A.previousEpisodes, flags: A.safetyFlags, movementBefore: A.movementBefore)
+                        previous: A.previousEpisodes, flags: A.safetyFlags, movementBefore: A.movementBefore,
+                        safetyUnresolved: unresolvedSafety(A))
+    }
+    /// Why the safety question is still open, in plain words (nothing when it was answered yes or no).
+    static func unresolvedSafety(_ A: AssessmentState) -> [String] {
+        guard A.safetyUnresolved else { return [] }
+        if A.answers["safety"] == .skipped { return ["The numbness, tingling, swelling or weakness check was skipped"] }
+        if A.uncertainSigns.isEmpty { return ["Not sure about numbness, tingling, swelling or weakness"] }
+        return A.uncertainSigns.map { "Not sure about \($0.label.lowercased())" }
     }
 }
 
@@ -234,4 +274,6 @@ struct SymptomSnapshot {
     var previous: Bool? = nil
     var flags: [SafetyFlag] = []
     var movementBefore: MovementResult? = nil
+    var safetyUnresolved: [String] = []      // safety answers that were "not sure" or skipped
+    var automaticCarePaused = false          // an earlier outcome paused automatic sessions for this area
 }

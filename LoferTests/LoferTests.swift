@@ -71,11 +71,11 @@ final class LoferTests: XCTestCase {
         XCTAssertNotNil(v.command, "Only the validator can produce a command the device accepts")
     }
 
-    // MARK: hedged explanations
+    // MARK: hedged explanations (worsening gets none: see CareFlowSafetyTests)
     func testExplanationIsHedged() {
         let s = SymptomSnapshot(areaId: "r_sh_back", type: "tightness", activity: "tennis")
         let plan = TreatmentPlan(kind: .gentle, name: "Gentle", region: "r_sh_back", steps: [.init(modality: .compression, intensity: 2, minutes: 5), .init(modality: .heat, intensity: 2, minutes: 2)])
-        for resp in ["much", "little", "same", "worse"] {
+        for resp in ["much", "little", "same"] {
             let text = TreatmentEngine.explain(response: resp, s, plan: plan, before: .init(feel: .little), after: .init(feel: .fine))
             XCTAssertFalse(text.isEmpty)
             XCTAssertTrue(text.has("may|often|can|might"), "Explanation should be hedged: \(text)")

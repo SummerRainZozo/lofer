@@ -4,10 +4,22 @@ import simd
 
 /// THE CARE FLOW (state machine). One episode, from "how are you feeling?" to Body Memory:
 ///
-///   listening → clarify (one question at a time) → locate (choose the spot on the body) →
-///   confirm understanding [→ correct] → movement check → suggest [→ customise] →
-///   treat ⇄ paused → movement check again → reassess → outcome → Body Memory
-///   "stop" (safety) can happen from any step. Steps are skipped when not needed.
+///   INVESTIGATE (repeats until there's enough information, within a budget):
+///     user input → Care Intelligence (understands + PROPOSES a next step)
+///                → InvestigationEngine (deterministic: safety first, validates, decides)
+///                → one of: question · refine the spot on the body · movement check ·
+///                  observation · "enough to consider care" · "not enough information" ·
+///                  "better seen by a professional" · safety stop
+///   then: confirm summary → safety gate → suggest [→ customise] → treat ⇄ paused →
+///   same movement again → reassess → outcome → Body Memory (state → investigation →
+///   observation → intervention → outcome). "stop" (safety) can happen from any step.
+///
+/// Rules this model keeps at every step:
+///   • Warning signs are handled before anything else the user says (see `handleWarningSigns`).
+///   • "Not sure" or a skipped safety answer is never treated as "no".
+///   • Feeling worse during a session pauses it, and it only resumes after "has it settled?".
+///   • Newer input, a reset or leaving the flow cancels any older work still in progress.
+///   • Care Intelligence only proposes. The InvestigationEngine and SafetyValidator decide.
 ///
 /// This model only orchestrates. Understanding = AssessmentService, safety = SafetyValidator,
 /// plans = TreatmentEngine, hardware = DeviceInterface, memory = BodyMemoryStore.
@@ -23,7 +35,7 @@ final class CareFlowModel {
     @ObservationIgnored let memory: BodyMemoryStore
     @ObservationIgnored let intelligence: CareIntelligenceService
     @ObservationIgnored let device: DeviceInterface
-    @ObservationIgnored let voice: MockVoiceAgent
+    @ObservationIgnored let voice: any VoiceAgent
     @ObservationIgnored let body: BodySceneController
     @ObservationIgnored private let atlas = BodyAtlas.shared
     @ObservationIgnored var onExit: (() -> Void)?                 // back to home
@@ -51,6 +63,22 @@ final class CareFlowModel {
     @ObservationIgnored private var expect: String?
     @ObservationIgnored private var trail: [Step] = []
     @ObservationIgnored private var startedAt = Date()
+    @ObservationIgnored private var episodeId = ""            // one id per episode, so saving again updates it
+    /// Bumped by every new input and every reset. Async work that started under an older
+    /// value is stale (superseded or abandoned) and must not change anything.
+    @ObservationIgnored private var generation = 0
+
+    // Investigation: what's been learned this session beyond the assessment fields
+    var investigation = InvestigationState()
+    var conclusion: InvestigationAction?                      // set when it ends without care (not enough info / professional)
+    var intelligenceNote: String?                             // why the last turn used the on-device fallback (debug only)
+    @ObservationIgnored private var transcript: [ConversationTurn] = []
+    @ObservationIgnored private var turn = 0
+    @ObservationIgnored private var pendingInput: CareInput?   // the tap / spot / movement result being handled
+    @ObservationIgnored private var freshResponse: CareIntelligenceResponse?   // Care Intelligence's answer to the input being handled now
+    @ObservationIgnored private var pendingAck = ""            // what to acknowledge before the next prompt
+    @ObservationIgnored private var locatePromptOverride: String?
+    @ObservationIgnored private var planning: Task<Void, Never>?
 
     // Suggestion + safety
     var tri: TriageResult?
@@ -77,14 +105,17 @@ final class CareFlowModel {
     @ObservationIgnored private var feedbackLog: [Episode.Feedback] = []
     @ObservationIgnored private var adjustments: [String] = []
     @ObservationIgnored private var runResult: (elapsed: Int, log: [Episode.LogEntry])?
+    @ObservationIgnored private var flagsAtStart = 0           // warning signs known when the session started
+    @ObservationIgnored private var stopReason: String?
     @ObservationIgnored private var ticker: Task<Void, Never>?
 
     // Result
     var result: TreatmentEngine.Reassessment?
     var why = ""
     var routineSaved = false
+    @ObservationIgnored private var response: String?
 
-    init(memory: BodyMemoryStore, intelligence: CareIntelligenceService, device: DeviceInterface, voice: MockVoiceAgent, body: BodySceneController) {
+    init(memory: BodyMemoryStore, intelligence: CareIntelligenceService, device: DeviceInterface, voice: any VoiceAgent, body: BodySceneController) {
         self.memory = memory; self.intelligence = intelligence; self.device = device; self.voice = voice; self.body = body
         body.onReady = { [weak self] in Task { @MainActor in self?.bodyReady = true; self?.refresh() } }
         body.onTap = { [weak self] p, n in Task { @MainActor in self?.tapped(p, n) } }
@@ -94,12 +125,16 @@ final class CareFlowModel {
 
     // MARK: - Starting an episode
     func reset() {
+        generation += 1; episodeId = "e-\(UUID().uuidString)"
         stopTicker(); _ = device.stop(); body.setPatches(around: []); body.setSpot(nil, normal: nil); body.setLimbView(nil, limb: nil)
         focus = "body"; cand = nil; sel = nil; lit = []; pendingSide = nil; care = nil
         A = AssessmentState(); question = nil; expect = nil; trail = []; startedAt = Date()
         tri = nil; sym = nil; options = []; plan = nil; validated = nil; history = []
         movementTest = nil; movementPhase = "before"; skipMovement = false
         reading = nil; checkIn = false; pausedForWorse = false; feedbackLog = []; adjustments = []; runResult = nil
+        flagsAtStart = 0; stopReason = nil; response = nil
+        investigation = InvestigationState(); conclusion = nil; intelligenceNote = nil; transcript = []; turn = 0
+        pendingInput = nil; freshResponse = nil; pendingAck = ""; locatePromptOverride = nil; planning?.cancel(); planning = nil
         result = nil; why = ""; routineSaved = false; limbView = nil; heard = ""
     }
     /// Touch route: the body comes first, the story after.
@@ -108,8 +143,14 @@ final class CareFlowModel {
     func beginWithStory(_ text: String) async {
         reset()
         heard = "“\(text)”"
-        let r = await intelligence.interpret(text)
+        let g = generation
+        transcript.append(.init(role: .user, text: text))
+        let response = await consult(CareInput(kind: .utterance, text: text), expect: "story")
+        guard g == generation else { return }      // the user left or started again meanwhile
+        let r = ParsedUtterance.merged(local: SymptomParser.parse(text), with: response)
         var learned = AssessmentService.update(&A, with: r, expect: "story")
+        recordReport(text, learned: learned)
+        freshResponse = response
         let res = r.entry.flatMap { resolve(r, $0) }
         if case .id(let id)? = res { AssessmentService.setRegion(&A, id); learned.append("region") }
         step = .listening
@@ -122,8 +163,20 @@ final class CareFlowModel {
     // MARK: - Hearing the user (voice or typed) — read against the current step
     func hear(_ text: String) async {
         heard = "“\(text)”"
-        let r = await intelligence.interpret(text)
+        generation += 1; let g = generation
+        transcript.append(.init(role: .user, text: text))
+        // While investigating, Care Intelligence reads the words in the context of the whole
+        // session. Warning signs and UI commands ("start", "too strong") are ALWAYS also read
+        // on-device, so safety never depends on the network.
+        let investigating: [Step] = [.listening, .clarify, .locate, .confirm, .correct, .movement]
+        let response = investigating.contains(step) ? await consult(CareInput(kind: .utterance, text: text), expect: expect) : nil
+        if response == nil { await Task.yield() }
+        guard g == generation else { return }      // superseded by newer input, a reset or leaving
+        let r = ParsedUtterance.merged(local: SymptomParser.parse(text), with: response)
+        freshResponse = response
+        defer { freshResponse = nil }
         let t = text.lowercased()
+        if handleWarningSigns(r) { return }        // warning signs come before any other intent
         switch step {
         case .clarify, .listening, .correct: return await understand(r)
         case .confirm:
@@ -132,8 +185,8 @@ final class CareFlowModel {
             if r.confirm { return confirmYes() }
             return say("Is that right? You can say yes, or tell me what to change.")
         case .movement:
-            if t.has("skip") { return skipMovementCheck() }
-            if let m = r.movement ?? (r.flags.isEmpty ? nil : MovementResult(feel: .cannot)) { return movementAnswer(m) }
+            if r.skip { return skipMovementCheck() }
+            if let m = r.movement { return movementAnswer(m) }
             return say("How did that feel? Fine, a little uncomfortable, quite uncomfortable, or not comfortable at all?")
         case .suggest, .custom:
             if let p = r.prefs { return applyPrefs(p) }
@@ -142,8 +195,14 @@ final class CareFlowModel {
             return say("You can say things like “more heat”, “keep it gentle” or “no electrical stimulation”. Say “start” when you're ready.")
         case .treat, .paused:
             if t.has("\\b(stop|end|finish)\\b") { return endRun() }
+            if pausedForWorse {
+                // Paused because it got worse: only the answer to "has it settled?" moves things on.
+                if r.feedback == "worse" || r.response == "worse" || r.deny || t.has("still|not settled|hasn'?t settled|no better") { return stillWorse() }
+                if r.confirm || ["much", "little"].contains(r.response) || t.has("settled|eased|gone|back to normal") { return settled() }
+                return say(Self.settleQuestion)
+            }
             if t.has("pause|hold on|wait"), step == .treat { device.pause(); step = .paused; return say("Paused.") }
-            if t.has("resume|continue|carry on|go on"), step == .paused { return resumeRun(gentler: pausedForWorse) }
+            if t.has("resume|continue|carry on|go on"), step == .paused { return resumeRun(gentler: false) }
             if let f = r.prefs?.focus ?? (t.has("focus|move") ? r.direction : nil) { return moveFocus(f) }
             if let fb = r.feedback { return feedback(fb, via: "voice") }
             if let i = r.prefs?.intensity { return feedback(i < 0 ? "too strong" : "too weak", via: "voice") }
@@ -172,13 +231,76 @@ final class CareFlowModel {
         }
     }
 
+    /// WARNING SIGNS FIRST. Once Lofer has moved past the questions (movement check onwards),
+    /// anything the user says is checked for warning signs before any other intent, and the
+    /// original sign and its urgency are kept as reported. Returns true if it decided what happens next.
+    /// (Before that point, `understand` records signs and `advance` runs the safety gate.)
+    private func handleWarningSigns(_ r: ParsedUtterance) -> Bool {
+        let active: [Step] = [.movement, .suggest, .custom, .treat, .paused, .reassess, .outcome, .stop]
+        guard active.contains(step), !r.flags.isEmpty || !r.uncertainFlags.isEmpty else { return false }
+        A.userDescription.append(r.raw.trimmingCharacters(in: .whitespaces))     // keep the user's own words as evidence
+        for f in r.flags where !A.safetyFlags.contains(where: { $0.label == f.label }) { A.safetyFlags.append(f) }
+        for f in r.uncertainFlags where !A.uncertainSigns.contains(where: { $0.label == f.label }) { A.uncertainSigns.append(f) }
+        let serious = r.flags.contains { $0.level != .caution }
+        if serious { safetyStop(); return true }
+        let label = (r.flags.first ?? r.uncertainFlags.first)!.label.lowercased()
+        switch step {
+        case .treat, .paused:
+            // A caution-level or uncertain sign during care: pause, then check before going on.
+            pauseForWorsening(note: "Paused: \(label) mentioned during the session")
+            say("You mentioned \(label). I've paused. \(Self.settleQuestion)")
+            return true
+        case .movement, .suggest, .custom:
+            if !r.uncertainFlags.isEmpty && r.flags.isEmpty {
+                // Unsure about a warning sign: ask the safety check (again) before going on.
+                A.answers["safety"] = nil; advance(skipAck: true); return true
+            }
+            if step == .movement {
+                if r.movement != nil { return false }       // the movement answer is still read, with the sign on record
+                say("Noted: \(label). How did the movement feel overall?"); return true
+            }
+            let t = triageNow()
+            if t.level == .stop { go(.stop); saveEpisode(); say(stopLine(t)); return true }
+            if let p = plan { pick(p) }                     // re-check the plan against the new limits
+            say("Noted: \(label). I've kept the session within the limits for that.")
+            return true
+        case .reassess:
+            return false                                     // the answer is still read; the new sign counts against it
+        default:
+            saveEpisode()                                    // add it to today's record
+            say("I've added that to today's record.")
+            return true
+        }
+    }
+    /// A serious warning sign: stop any running session FIRST, then explain.
+    private func safetyStop() {
+        if step == .treat || step == .paused {
+            stopTicker(); runResult = device.stop(); body.setPatches(around: []); checkIn = false; pausedForWorse = false
+            stopReason = "Stopped: warning sign reported during the session"
+        } else if runResult != nil, stopReason == nil {
+            stopReason = "Warning sign reported after the session"
+        }
+        let t = triageNow()
+        go(.stop); saveEpisode()
+        say(t.urgent ? stopLine(t) : "Let's stop here. \(stopLine(t))")
+    }
+
     /// Everything said while Lofer is getting to know the problem.
     private func understand(_ r: ParsedUtterance) async {
         let t = r.raw.lowercased()
         // While answering a question, a body word only moves the area if it sounds like a correction.
         let relocate = r.entry != nil && (A.bodyRegion == nil || expect == nil || expect == "story" || t.has("actually|it'?s (my|in|on|more)|not (my|the)|rather|instead"))
+        // An answer to an observation request ("did it ease when you stopped?").
+        if let e = expect, e.hasPrefix("observation:"), let q = question, let value = observationValue(r, q) {
+            return answerObservation(e, value)
+        }
         var learned = AssessmentService.update(&A, with: r, expect: expect)
-        if let e = expect, !learned.isEmpty { A.asked.insert(e); A.questionsAsked += 1 }
+        recordReport(r.raw, learned: learned)
+        // Only a reply that addresses the question counts as answering it.
+        if let e = expect, learned.contains("answered:\(e)") {
+            A.questionsAsked += 1
+            investigation.addCheck(.question, purpose: e, prompt: question?.text ?? e, response: r.raw, status: Self.checkStatus(A.answers[e]))
+        }
         if relocate, let e = r.entry, let res = resolve(r, e) {
             if case .id(let id) = res, id != A.bodyRegion { learned.append("region") }
             await applyTarget(res, advanceAfter: false)
@@ -191,20 +313,169 @@ final class CareFlowModel {
     }
 
     /// Decide the next step from what's known and what's missing. One question at a time.
+    /// Decide what happens next. Safety first (deterministic, immediate). Otherwise Care
+    /// Intelligence's proposal for this input goes through the InvestigationEngine. For a tap
+    /// or other structured input, Care Intelligence is consulted first (asynchronously).
     func advance(_ learned: [String] = [], skipAck: Bool = false) {
-        if A.safetyFlags.contains(where: { $0.level != .caution }) { return runTriage() }
-        let ack = skipAck ? "" : AssessmentService.ack(A, learned: learned)
+        if A.safetyFlags.contains(where: { $0.level != .caution }) || A.safetyUnresolved { return runTriage() }
+        let ack = skipAck ? "" : pendingAck.isEmpty ? AssessmentService.ack(A, learned: learned) : pendingAck
+        let appAck = !pendingAck.isEmpty
+        pendingAck = ""
         if let ps = pendingSide { go(.locate); expect = nil; return say(ack, ps.both ? "Is it both \(ps.noun)s, or one more than the other?" : "Which \(ps.noun) is it, left or right?") }
-        let hc = A.bodyRegion.map { memory.history(for: $0).count } ?? 0
-        let q = AssessmentService.nextQuestion(A, historyCount: hc)
-        if q?.field == "region" { go(.locate); expect = nil; return say(ack, q!.text) }
-        if let q { question = q; expect = q.field; go(.clarify); return say(ack, q.text) }
-        if !A.regionConfirmed { go(.locate); expect = nil; return say(ack, locatePrompt) }
-        go(.confirm); expect = nil
-        say(confirmLine)
+        if let r = freshResponse { freshResponse = nil; return present(r, ack: ack, preferAppAck: appAck || skipAck) }
+        let input = pendingInput ?? CareInput(kind: .answer)
+        pendingInput = nil
+        let g = generation
+        planning = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let r = await self.consult(input, expect: self.expect)
+            guard g == self.generation, !Task.isCancelled else { return }   // superseded or left
+            self.present(r, ack: ack, preferAppAck: appAck || skipAck)
+        }
     }
-    var confirmLine: String { "\(AssessmentService.summary(A)) Is that right?" }
+    /// Waits for a pending "what next?" decision (tests and the demo use this).
+    func settle() async { await planning?.value }
+
+    // MARK: - Investigation: consult, decide, show
+    /// Asks Care Intelligence about this input, with the session's context. Never throws: if
+    /// the configured service fails (backend down, timeout, malformed answer), the on-device
+    /// service answers instead, so the care flow never breaks.
+    private func consult(_ input: CareInput, expect: String?) async -> CareIntelligenceResponse {
+        turn += 1
+        let request = CareRequest(
+            requestId: UUID().uuidString, sessionId: episodeId, turn: turn, latestUserInput: input, expectedField: expect,
+            conversationHistory: Array(transcript.suffix(10)), currentAssessmentState: A, selectedBodyRegion: selectedRegion,
+            investigation: investigation, completedMovementChecks: investigation.movementObservations,
+            relevantBodyMemory: memory.relevantMemory(for: A.bodyRegion, activity: A.activityContext),
+            currentCareFlowState: step.rawValue)
+        do {
+            let r = try await intelligence.respond(to: request)
+            guard r.requestId == request.requestId else { throw CareIntelligenceError.mismatchedRequest }
+            investigation.intelligenceSources.append(r.provider); intelligenceNote = nil
+            return r
+        } catch {
+            intelligenceNote = "On-device fallback: \(error)"
+            investigation.intelligenceSources.append("local (fallback)")
+            return LocalCareIntelligenceService.response(to: request)
+        }
+    }
+    private var selectedRegion: SelectedRegion? {
+        guard let id = sel?.id ?? care?.id ?? A.bodyRegion, atlas.node(id) != nil else { return nil }
+        return SelectedRegion(id: id, label: atlas[id].label, group: atlas.group(of: id), laterality: A.laterality,
+                              confirmed: A.regionConfirmed, isLeaf: atlas.isLeaf(id))
+    }
+    private var investigationContext: InvestigationEngine.Context {
+        InvestigationEngine.Context(A: A, investigation: investigation, triage: triagePreview(),
+                                    movement: movementTest ?? A.bodyRegion.flatMap { MovementTest.forArea($0) },
+                                    historyCount: A.bodyRegion.map { memory.history(for: $0).count } ?? 0)
+    }
+    /// The safety gate's view right now (without changing the visible state).
+    private func triagePreview() -> TriageResult? {
+        guard !A.safetyFlags.isEmpty || A.safetyUnresolved || A.bodyRegion != nil else { return nil }
+        var s = AssessmentService.symptom(A)
+        if let r = A.bodyRegion { s.automaticCarePaused = memory.automaticCarePause(for: r) != nil }
+        return SafetyValidator.triage(s, profile: memory.profile)
+    }
+
+    /// Takes in Care Intelligence's view, lets the engine decide, and shows the result.
+    private func present(_ response: CareIntelligenceResponse, ack: String, preferAppAck: Bool) {
+        investigation.cycles += 1
+        if !response.possibleContributingPatterns.isEmpty { investigation.patterns = response.possibleContributingPatterns }
+        for e in response.evidenceUpdates {
+            investigation.addEvidence(.careIntelligence, e.summary, field: e.field, value: e.value, supports: e.supports, weakens: e.weakens)
+        }
+        let ctx = investigationContext
+        investigation.uncertainties = response.uncertainties.isEmpty ? InvestigationEngine.uncertainties(ctx) : response.uncertainties
+        let (action, overridden) = InvestigationEngine.decide(proposal: response.recommendedNextAction, ctx)
+        investigation.nextAction = action
+        investigation.readiness = InvestigationEngine.readiness(ctx)
+        if let overridden { intelligenceNote = overridden }
+        // Wording: Care Intelligence's, only if it passes the language guard and matches what we're doing.
+        let theirAck = response.userFacingResponse.acknowledgement
+        let lead = !preferAppAck && response.provider != "local" && CareLanguage.isAcceptable(theirAck) ? theirAck : ack
+        let theirPrompt = response.userFacingResponse.prompt
+        let prompt = action == response.recommendedNextAction && CareLanguage.isAcceptable(theirPrompt) ? theirPrompt : nil
+        perform(action, lead: lead, prompt: prompt)
+    }
+
+    /// Shows an investigation action with the existing screens: conversation drives the UI.
+    private func perform(_ action: InvestigationAction, lead: String, prompt: String?) {
+        switch action {
+        case .askQuestion(let q):
+            // Known fields use the app's own answer chips (so taps map to structured answers).
+            let base = ["sensation", "safety", "triggers", "onset", "severity", "previous"].contains(q.field)
+                ? AssessmentService.question(q.field, A)
+                : AssessmentQuestion(field: q.field, text: q.question, options: (q.options ?? []).map { ($0.label, $0.value) }, multi: q.multiSelect ?? false)
+            question = AssessmentQuestion(field: base.field, text: prompt ?? q.question, hint: base.hint, options: base.options, multi: base.multi)
+            expect = q.field; go(.clarify); say(lead, question!.text)
+        case .refineBodyLocation(let l):
+            expect = nil; locatePromptOverride = prompt ?? l.prompt
+            if l.requestedRefinement != .region, sel == nil, cand == nil, lit.isEmpty, let r = A.bodyRegion {
+                Task { await applyTarget(.id(r), advanceAfter: false) }      // show the area so it can be refined
+            }
+            go(.locate); say(lead, locatePromptOverride!)
+        case .movementCheck(let m):
+            movementTest = MovementTest.all.first { $0.id == m.movementId } ?? movementTest
+            movementStep("before", lead: lead, prompt: prompt)
+        case .requestUserObservation(let o):
+            // The observation question already acknowledges what was felt ("You felt it about halfway…").
+            question = AssessmentQuestion(field: "observation:\(o.observationId)", text: prompt ?? o.prompt, options: o.options.map { ($0.label, $0.value) })
+            expect = question!.field; go(.clarify); say(question!.text)
+        case .proceedToCare:
+            expect = nil; go(.confirm); say(lead, confirmLine)
+        case .insufficientInformation(let c), .recommendProfessionalAssessment(let c):
+            endWithoutCare(action, reason: c.reason, message: c.message)
+        case .safetyStop(let s):
+            // The deterministic gate decides. If it doesn't see a stop, Care Intelligence's concern
+            // still prevents care: Lofer recommends a professional instead of treating.
+            if triagePreview()?.level == .stop { return runTriage() }
+            endWithoutCare(.recommendProfessionalAssessment(.init(reason: s.reason, message: "I'd rather not start a session for this. It's worth having it looked at by a GP or physiotherapist.")),
+                           reason: s.reason, message: "I'd rather not start a session for this. It's worth having it looked at by a GP or physiotherapist.")
+        }
+    }
+    private func endWithoutCare(_ action: InvestigationAction, reason: String, message: String) {
+        conclusion = action; investigation.conclusion = reason; expect = nil
+        go(.stop); saveEpisode(); say(message)
+    }
+
+    // MARK: - Evidence: the user is a sensor
+    private func recordReport(_ text: String, learned: [String]) {
+        let facts = learned.filter { !$0.hasPrefix("answered:") }
+        guard !facts.isEmpty, !text.isEmpty else { return }
+        investigation.addEvidence(.userReport, "“\(text)”", field: facts.joined(separator: ","))
+    }
+    private static func checkStatus(_ s: AnswerStatus?) -> Check.Status {
+        switch s { case .uncertain?: .uncertain; case .skipped?: .skipped; default: .answered }
+    }
+    private func observationValue(_ r: ParsedUtterance, _ q: AssessmentQuestion) -> String? {
+        if r.unsure { return "unsure" }
+        let t = r.raw.lowercased()
+        if let o = q.options.first(where: { t.has(NSRegularExpression.escapedPattern(for: $0.0.lowercased())) }) { return o.1 }
+        if r.confirm, let first = q.options.first { return first.1 }
+        if r.deny, q.options.count > 1 { return q.options[1].1 }
+        return nil
+    }
+    /// An answer to an observation request, as evidence.
+    func answerObservation(_ field: String, _ value: String) {
+        let id = String(field.dropFirst("observation:".count))
+        let label = question?.options.first { $0.1 == value }?.0 ?? value
+        investigation.addCheck(.observation, purpose: id, prompt: question?.text ?? id, response: label, status: value == "unsure" ? .uncertain : .answered)
+        investigation.addEvidence(.userObservation, "\(question?.text ?? id) → \(label)", field: id, value: value)
+        A.answers[field] = value == "unsure" ? .uncertain : .affirmative
+        pendingInput = CareInput(kind: .observation, text: label, field: id, value: value)
+        pendingAck = value == "unsure" ? "That's fine." : "Thanks, that helps."
+        advance()
+    }
+
+    var confirmLine: String {
+        let checked = investigation.baseline.map { " The \($0.name.lowercased()) felt \(MovementResult(feel: Self.feel($0.outcome)).phrase)\($0.whereInMovement.map { ", \($0)" } ?? "")." } ?? ""
+        return "\(AssessmentService.summary(A))\(checked) Is that right?"
+    }
+    static func feel(_ o: MovementObservation.Outcome) -> MovementResult.Feel {
+        [.comfortable: .fine, .mildDiscomfort: .little, .significantDiscomfort: .quite, .unableToPerformComfortably: .cannot][o]!
+    }
     private var locatePrompt: String {
+        if let o = locatePromptOverride { return o }
         if sel != nil { return "Here? Tap “That’s the spot”, or tell me which way to move it." }
         if !lit.isEmpty { return "Show me exactly where. Tap it, or say something like ‘more towards the back’." }
         return "Show me where it's bothering you."
@@ -214,19 +485,43 @@ final class CareFlowModel {
     // MARK: - Answers from chips
     func answerChip(_ field: String, _ value: String) {
         if field == "sensation" && value == "__other" { expect = "sensation"; return say("Tell me in your own words. Whatever comes to mind.") }
+        if field.hasPrefix("observation:") { return answerObservation(field, value) }
         AssessmentService.answer(&A, field: field, value: value); A.questionsAsked += 1
+        let label = question?.options.first { $0.1 == value }?.0 ?? value
+        investigation.addCheck(.question, purpose: field, prompt: question?.text ?? field, response: label, status: .answered)
+        investigation.addEvidence(.userReport, "\(question?.text ?? field) → \(label)", field: field, value: value)
+        pendingInput = CareInput(kind: .answer, text: label, field: field, value: value)
         let learned = ["sensation": ["sensation"], "triggers": value == "__rest" ? ["symptomsAtRest"] : value == "__none" ? [] : ["movementTriggers"], "onset": ["onset"]][field] ?? []
         advance(learned)
     }
-    func answerSafety(_ labels: [String]) { AssessmentService.addSafetyAnswers(&A, labels); A.questionsAsked += 1; advance() }
+    func answerSafety(_ labels: [String]) {
+        AssessmentService.addSafetyAnswers(&A, labels); A.questionsAsked += 1
+        let answer = labels.isEmpty ? "None of these" : labels.joined(separator: ", ")
+        investigation.addCheck(.question, purpose: "safety", prompt: "Numbness, tingling, swelling or weakness?", response: answer, status: .answered)
+        pendingInput = CareInput(kind: .answer, text: answer, field: "safety", value: labels.isEmpty ? "none" : "reported")
+        advance()
+    }
+    /// "Not sure" / "Skip" on the safety question: recorded as such, never as "no".
+    func answerSafetyUnsure() {
+        AssessmentService.setSafety(&A, .uncertain); A.questionsAsked += 1
+        investigation.addCheck(.question, purpose: "safety", prompt: "Numbness, tingling, swelling or weakness?", response: "Not sure", status: .uncertain)
+        advance()
+    }
+    func skipSafety() {
+        AssessmentService.setSafety(&A, .skipped); A.questionsAsked += 1
+        investigation.addCheck(.question, purpose: "safety", prompt: "Numbness, tingling, swelling or weakness?", response: nil, status: .skipped)
+        advance()
+    }
+    /// From the "not enough information" screen: go back and answer the safety check.
+    func revisitSafety() { A.answers["safety"] = nil; A.uncertainSigns = []; tri = nil; advance(skipAck: true) }
     func confirmYes() { runTriage() }
     func correction() { go(.correct); say("No problem. What should I change? Tap one, or just tell me.") }
     func correct(_ what: String) {
         switch what {
         case "place": A.regionConfirmed = false; care = nil; go(.locate); return say(locatePrompt)
-        case "feel": A.sensation = nil; A.sensationWords = nil; A.asked.remove("sensation")
-        case "when": A.onset = nil; A.activityContext = nil; A.asked.remove("onset")
-        default: A.movementTriggers = []; A.symptomsAtRest = nil; A.asked.remove("triggers")
+        case "feel": A.sensation = nil; A.sensationWords = nil; A.answers["sensation"] = nil
+        case "when": A.onset = nil; A.activityContext = nil; A.answers["onset"] = nil
+        default: A.movementTriggers = []; A.symptomsAtRest = nil; A.answers["triggers"] = nil
         }
         A.questionsAsked = min(A.questionsAsked, AssessmentService.maxFollowUps - 1)
         advance(skipAck: true)
@@ -234,45 +529,81 @@ final class CareFlowModel {
     func backToSummary() { go(.confirm); say(confirmLine) }
 
     // MARK: - Safety gate
-    private func runTriage() {
-        let s = AssessmentService.symptom(A); sym = s
+    /// Runs the deterministic safety gate on everything known right now, including any
+    /// pause on automatic care stated after an earlier session.
+    @discardableResult private func triageNow() -> TriageResult {
+        var s = AssessmentService.symptom(A)
+        if let r = A.bodyRegion { s.automaticCarePaused = memory.automaticCarePause(for: r) != nil }
+        sym = s
         let t = SafetyValidator.triage(s, profile: memory.profile); tri = t
-        if t.level == .stop {
-            go(.stop); saveEpisode(treated: false)
-            return say(t.urgent ? "This needs medical attention rather than Lofer." : "I don't think Lofer should treat this one. Let me explain why.")
-        }
+        return t
+    }
+    private func stopLine(_ t: TriageResult) -> String {
+        t.urgent ? "This needs medical attention rather than Lofer." : t.deferred ? "I don't have enough information to recommend a session here."
+            : "I don't think Lofer should treat this one. Let me explain why."
+    }
+    private func runTriage() {
+        let t = triageNow()
+        if t.level == .stop { go(.stop); saveEpisode(); return say(stopLine(t)) }
         if A.movementBefore == nil && !skipMovement { return movementStep("before") }
         suggestStep()
     }
 
     // MARK: - Movement check (before and after)
-    func movementStep(_ phase: String) {
+    func movementStep(_ phase: String, lead: String = "", prompt: String? = nil) {
         if movementTest == nil, let r = A.bodyRegion { movementTest = MovementTest.forArea(r) }
         guard let test = movementTest else { skipMovement = true; return phase == "before" ? suggestStep() : reassessStep() }
         movementPhase = phase; go(.movement)
-        say(phase == "before" ? test.intro : "Let's try that movement again and see how it feels now?")
+        say(lead, phase == "before" ? (prompt ?? test.intro) : "Let's try that same movement again, and see how it feels now.")
+    }
+    /// A movement result, as structured evidence.
+    private func recordMovement(_ m: MovementResult, phase: MovementObservation.Phase, words: String? = nil) {
+        guard let test = movementTest else { return }
+        var o = MovementObservation(movementId: test.id, name: test.name, phase: phase, outcome: MovementObservation.outcome(m.feel),
+                                    whereInMovement: m.whereInMovement, location: m.sideOfIt, quality: m.quality, userDescription: words)
+        if phase == .repeatCheck, let b = investigation.baseline {
+            let order: [MovementObservation.Outcome] = [.comfortable, .mildDiscomfort, .significantDiscomfort, .unableToPerformComfortably]
+            let d = order.firstIndex(of: o.outcome)! - order.firstIndex(of: b.outcome)!
+            o.changeVsBaseline = d < 0 ? .better : d > 0 ? .worse : .same
+        }
+        investigation.movementObservations.append(o)
+        investigation.addCheck(.movement, purpose: phase == .baseline ? "See how the area responds to movement" : "Compare with before care",
+                               prompt: test.name, response: m.phrase + (m.whereInMovement.map { ", \($0)" } ?? ""), status: .answered)
+        investigation.addEvidence(.movementCheck, "\(test.name) (\(phase == .baseline ? "before" : "after")): \(m.phrase)\(m.whereInMovement.map { ", \($0)" } ?? "")",
+                                  field: test.id, value: o.outcome.rawValue)
     }
     func movementAnswer(_ m: MovementResult) {
-        if movementPhase == "after" { A.movementAfter = m; return reassessStep() }
+        if movementPhase == "after" { A.movementAfter = m; recordMovement(m, phase: .repeatCheck); return reassessStep() }
         A.movementBefore = m
+        recordMovement(m, phase: .baseline)
         // The safety layer decides what a difficult movement means (gentler care, or stop).
-        sym = AssessmentService.symptom(A); tri = SafetyValidator.triage(sym!, profile: memory.profile)
-        if tri?.level == .stop { go(.stop); saveEpisode(treated: false); return say("Thanks for trying. I don't think Lofer should treat this today.") }
+        let t = triageNow()
+        if t.level == .stop { go(.stop); saveEpisode(); return say(t.deferred ? stopLine(t) : "Thanks for trying. I don't think Lofer should treat this today.") }
         let detail = [m.whereInMovement, m.quality.map { "a \($0) feeling" }, m.sideOfIt.map { "on the \($0)" }].compactMap { $0 }.joined(separator: ", ")
-        say([.fine: "Good, that helps.", .little: "Thanks. I've noted that\(detail.isEmpty ? "" : " (\(detail))").", .quite: "Thanks. I'll keep things gentle.", .cannot: "That's fine, no need to push it. I'll keep things gentle."][m.feel]!)
-        Task { try? await Task.sleep(for: .milliseconds(900)); suggestStep() }
+        // The result is evidence: the investigation decides what's next (another check, or enough).
+        pendingAck = [.fine: "Good, that helps.", .little: "Thanks. I've noted that\(detail.isEmpty ? "" : " (\(detail))").", .quite: "Thanks. I'll keep things gentle.", .cannot: "That's fine, no need to push it."][m.feel]!
+        pendingInput = CareInput(kind: .movementResult, text: m.phrase, field: movementTest?.id, value: MovementObservation.outcome(m.feel).rawValue)
+        advance()
     }
-    func skipMovementCheck() { skipMovement = true; movementPhase == "after" ? reassessStep() : suggestStep() }
+    func skipMovementCheck() {
+        skipMovement = true
+        if movementPhase == "after" { return reassessStep() }
+        investigation.addCheck(.movement, purpose: "See how the area responds to movement", prompt: movementTest?.name ?? "Movement check", response: nil, status: .skipped)
+        pendingInput = CareInput(kind: .movementResult, text: "Skipped", field: movementTest?.id, value: "skipped")
+        pendingAck = "No problem."
+        advance()
+    }
 
     // MARK: - Suggest
-    private func suggestStep() {
+    private func suggestStep(ack: String = "") {
         guard let s = sym ?? Optional(AssessmentService.symptom(A)), let t = tri, let region = A.bodyRegion else { return }
         history = memory.history(for: region)
-        let sug = TreatmentEngine.suggest(s, t, profile: memory.profile, history: history, routine: memory.routine(for: region, activity: s.activity))
+        let sug = TreatmentEngine.suggest(s, t, profile: memory.profile, history: history, routine: memory.routine(for: region, activity: s.activity),
+                                          investigation: investigation)
         options = sug.options
         pick(sug.pick)
         go(.suggest)
-        say("\(sug.headline) Would you like to try this, or is there something you'd change?")
+        say(ack, "\(sug.headline) Would you like to try this, or is there something you'd change?")
     }
     func pick(_ p: TreatmentPlan) { plan = p; if let t = tri { validated = SafetyValidator.validate(p, t) }; refresh() }
     func applyPrefs(_ prefs: TreatmentPrefs) {
@@ -300,9 +631,11 @@ final class CareFlowModel {
 
     // MARK: - Treat
     func startTreatment() {
-        guard let p = plan, let t = tri else { return }
+        guard let p = plan, [.suggest, .custom].contains(step) else { return }
+        let t = triageNow()                       // decide on everything known now, not an older result
         let v = SafetyValidator.validate(p, t); validated = v
-        guard v.ok, let cmd = v.command else { go(.stop); return }
+        guard v.ok, let cmd = v.command else { go(.stop); saveEpisode(); return say(stopLine(t)) }
+        flagsAtStart = A.safetyFlags.count
         device.start(cmd)                         // the only way anything reaches the device
         totalSeconds = Double(v.plan.minutes * 60)
         checkAt = TreatmentEngine.checkIns(history); nextCheck = 0; checkIn = false
@@ -339,20 +672,46 @@ final class CareFlowModel {
         switch TreatmentEngine.feedbackAction(value) {
         case .level(let delta, let line)?:
             let change = SafetyValidator.validateLevel(rd.level + delta, modality: rd.modality, t)
+            if delta < 0 && change.intensity >= rd.level {
+                // "Too strong" at the gentlest level: comfort, not worsening. Pause and let them choose.
+                device.pause(); step = .paused; adjustments.append("Paused: too strong at the gentlest level")
+                return say("That's already the gentlest level, so I've paused. Resume when you're ready, or stop here.")
+            }
             device.setIntensity(change)
             adjustments.append("Intensity \(rd.level) → \(change.intensity) (\(value))")
             say(change.capped && delta > 0 ? "That's as firm as I can safely go here." : line)
-        case .pause(let line)?:
-            device.pause(); step = .paused; pausedForWorse = true; say(line)
+        case .pause?:
+            // "Worse" is not "too strong": the session pauses and only resumes once it has settled.
+            pauseForWorsening(note: "Paused: discomfort increased")
+            say("Let's pause. \(Self.settleQuestion)")
         case .keepGoing(let line)?: say(line)
         case nil: break
         }
     }
-    func pauseOrResume() { if step == .paused { resumeRun(gentler: false) } else { device.pause(); step = .paused; refresh() } }
-    func resumeRun(gentler: Bool) {
+    func pauseOrResume() {
+        if pausedForWorse { return say(Self.settleQuestion) }     // no way round the check
+        if step == .paused { resumeRun(gentler: false) } else { device.pause(); step = .paused; refresh() }
+    }
+
+    // MARK: - Worse during a session → check before going on
+    static let settleQuestion = "Has it settled back to how it felt before the session?"
+    private func pauseForWorsening(note: String) {
+        if step == .treat { device.pause(); step = .paused }
+        pausedForWorse = true; checkIn = false; adjustments.append(note); refresh()
+    }
+    /// It settled: carry on one level gentler.
+    func settled() { guard pausedForWorse else { return }; resumeRun(gentler: true) }
+    /// Still worse: end the session and go straight to the outcome as "worse".
+    func stillWorse() {
+        guard pausedForWorse else { return }
+        stopTicker(); runResult = device.stop(); body.setPatches(around: []); checkIn = false; pausedForWorse = false
+        stopReason = "Stopped: discomfort increased during the session and hadn't settled"
+        finishReassessment("worse")
+    }
+    private func resumeRun(gentler: Bool) {
         if gentler, let rd = reading, let t = tri {
             let change = SafetyValidator.validateLevel(rd.level - 1, modality: rd.modality, t); device.setIntensity(change)
-            adjustments.append("Paused after discomfort increased, resumed at level \(change.intensity)")
+            adjustments.append("Resumed at level \(change.intensity) after it settled")
         }
         pausedForWorse = false; device.resume(); step = .treat; refresh()
         say(gentler ? "Carrying on more gently. Tell me straight away if it gets worse." : "Resuming.")
@@ -366,9 +725,19 @@ final class CareFlowModel {
         say("Moved the focus \(["up": "higher", "down": "lower", "out": "further out", "in": "further in", "front": "toward the front", "back": "toward the back"][dir] ?? "").")
     }
     func endRun() {
+        guard step == .treat || step == .paused else { return }
         stopTicker()
-        runResult = device.stop(); body.setPatches(around: []); checkIn = false
-        if A.movementBefore != nil && !skipMovement { return movementStep("after") }
+        if pausedForWorse && stopReason == nil { stopReason = "Stopped by the user after discomfort increased" }
+        runResult = device.stop(); body.setPatches(around: []); checkIn = false; pausedForWorse = false
+        if A.movementBefore != nil && !skipMovement {
+            // Don't ask someone to repeat a movement that was uncomfortable before.
+            if investigation.baseline?.isUncomfortable == true {
+                investigation.addCheck(.movement, purpose: "Compare with before care", prompt: movementTest?.name ?? "Movement check",
+                                       response: "Not repeated: it was uncomfortable before", status: .skipped)
+                return reassessStep()
+            }
+            return movementStep("after")
+        }
         reassessStep()
     }
     private func placePatches() {
@@ -382,29 +751,43 @@ final class CareFlowModel {
     // MARK: - Reassess → learn / escalate
     private func reassessStep() { go(.reassess); say("All done. How does that feel now?") }
     func reassess(_ response: String) {
+        guard step == .reassess else { return }      // a second tap must not reassess (or save) twice
+        finishReassessment(response)
+    }
+    private func finishReassessment(_ response: String) {
+        self.response = response
         let s = sym ?? AssessmentService.symptom(A)
-        let r = TreatmentEngine.reassess(response: response, s, history: history); result = r
-        // A plausible, hedged "why it might feel this way" (shown, and spoken by the voice agent).
-        why = TreatmentEngine.explain(response: response, s, plan: validated?.plan, before: A.movementBefore, after: A.movementAfter)
-        saveEpisode(treated: true, response: response)
+        let comparison: TreatmentEngine.MovementComparison? = {
+            guard let t = movementTest, let b = A.movementBefore, let a = A.movementAfter else { return nil }
+            return .init(name: t.name, before: b, after: a)
+        }()
+        let newWarning = A.safetyFlags.count > flagsAtStart ? A.safetyFlags.last?.label : nil
+        let r = TreatmentEngine.reassess(response: response, s, history: history, movement: comparison, newWarning: newWarning); result = r
+        // A plausible, hedged "why it might feel this way", only when nothing points the other way.
+        why = r.pathway == "review" || r.pathway == "escalate" ? ""
+            : TreatmentEngine.explain(response: response, s, plan: validated?.plan, before: A.movementBefore, after: A.movementAfter)
         go(.outcome)
+        saveEpisode()
         say(r.headline, speak: "\(r.headline) \(why)")
     }
     func saveRoutine() {
-        guard let r = result, let region = A.bodyRegion, let p = validated?.plan else { return }
+        guard let r = result, r.offerRoutine, !r.pausesAutomaticCare, let region = A.bodyRegion, let p = validated?.plan else { return }
         memory.saveRoutine(areaId: region, activity: A.activityContext, name: r.routineName, steps: p.steps); routineSaved = true
         say("Saved as your \(r.routineName.lowercased()). I'll suggest it next time.")
     }
-    private func saveEpisode(treated: Bool, response: String? = nil) {
+    /// Saves this episode. Safe to call more than once: the same id updates the same record.
+    private func saveEpisode() {
         let s = sym ?? AssessmentService.symptom(A)
         let spot = care?.point == true ? sel : nil
-        let run = treated ? runResult : nil
-        var e = Episode(id: "e\(Int(Date().timeIntervalSince1970))", createdAt: startedAt, said: A.userDescription,
+        let run = runResult
+        let pathway = step == .stop ? (run == nil ? "not treated" : "stopped") : (result?.pathway ?? "")
+        var e = Episode(id: episodeId, createdAt: startedAt, said: A.userDescription,
                         point: spot.map { [$0.p.x, $0.p.y, $0.p.z] }, normal: spot.map { [$0.n.x, $0.n.y, $0.n.z] },
                         symptom: .init(areaId: s.areaId ?? "body", pairId: s.pairId, side: s.side, type: s.type, severity: s.severity, onset: s.onset,
                                        activity: s.activity, triggers: s.triggers, atRest: s.atRest, previous: s.previous, flags: s.flags.map(\.label)),
                         triage: .init(level: tri?.level.rawValue ?? "ok", reasons: tri?.reasons ?? []),
-                        outcome: .init(response: response, pathway: treated ? (result?.pathway ?? "") : "not treated"))
+                        outcome: .init(response: response, pathway: pathway, stopReason: stopReason,
+                                       pausesAutomaticCare: result?.pausesAutomaticCare == true ? true : nil))
         if let run, let v = validated {
             e.intervention = .init(planName: v.plan.name, kind: v.plan.kind, steps: v.plan.steps, minutesPlanned: v.plan.minutes, durationSec: run.elapsed,
                                    patches: device.activePatches, adjustments: adjustments, safetyNotes: v.notes, log: run.log)
@@ -412,6 +795,7 @@ final class CareFlowModel {
             e.outcome.lofersNote = why.isEmpty ? nil : why
         }
         e.feedback = feedbackLog
+        e.investigation = investigation
         if let t = movementTest, A.movementBefore != nil { e.movement = .init(name: t.name, before: A.movementBefore, after: A.movementAfter) }
         memory.add(e)
     }
@@ -443,6 +827,7 @@ final class CareFlowModel {
                 select(id, rp.point, rp.normal, keepCare: true)
             } else { focus = id; cand = nil; sel = nil; lit = [id]; care = nil; body.frame(id, role: .select, turn: true) }
             let changed = AssessmentService.setRegion(&A, id)
+            A.specificArea = Self.surface(of: id) ?? A.specificArea      // "back of the shoulder" → back
             refresh()
             if advanceAfter { advance(changed ? ["region"] : []) }
         }
@@ -532,7 +917,19 @@ final class CareFlowModel {
     }
     private func regionConfirmed(_ id: String, pair: String? = nil) {
         let changed = AssessmentService.setRegion(&A, id, pair: pair, confirmed: true)
+        let label = atlas[id].label + (pair.map { " and \(atlas[$0].label.lowercased())" } ?? "")
+        investigation.addCheck(.location, purpose: "Pin down the exact area", prompt: locatePrompt, response: label, status: .answered)
+        investigation.addEvidence(.location, "Confirmed on the body: \(label)", field: "region", value: id)
+        A.specificArea = A.specificArea ?? Self.surface(of: id)
+        pendingInput = CareInput(kind: .location, text: label, field: "region", value: id)
+        locatePromptOverride = nil
         advance(changed ? ["region"] : [])
+    }
+
+    /// "Back", "front", "outer"… from an atlas id like "r_sh_back".
+    static func surface(of id: String) -> String? {
+        for (k, v) in [("back", "back"), ("front", "front"), ("outer", "outer"), ("inner", "inner"), ("top", "top")] where id.hasSuffix("_\(k)") { return v }
+        return nil
     }
 
     /// ← always means "back one step".

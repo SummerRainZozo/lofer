@@ -1,6 +1,6 @@
 # Lofer
 
-Lofer is the iOS app for an AI-powered physical-care wearable. You tell Lofer how your body feels (by voice or typing), show it where on a 3D body, and it suggests a gentle session, runs it on the wearable, checks how you feel afterwards, and remembers what helped.
+Lofer is the iOS app for an AI-powered physical-care wearable. This repository also holds Lofer's website, in [`website/`](website/) (see [website/README.md](website/README.md)). You tell Lofer how your body feels (by voice or typing), show it where on a 3D body, and it suggests a gentle session, runs it on the wearable, checks how you feel afterwards, and remembers what helped.
 
 > **Tell Lofer how you feel → it understands → asks only what it still needs → confirms → checks a movement → suggests care → treats → checks again → learns.**
 
@@ -48,7 +48,7 @@ Lofer/
 │   │   ├── History/           ← Body history, episode detail, physiotherapist summary
 │   │   ├── Profile/           ← profile questions, safety check, saved routines
 │   │   └── TypographyLab/     ← temporary font comparison screen
-│   ├── Components/            ← reusable UI: VoiceOrb, PebbleLogo, LoferButton, BottomSheet…
+│   ├── Components/            ← reusable UI: VoiceOrb, LoferMark (logo), LoferButton, BottomSheet…
 │   ├── Models/                ← plain data: AssessmentState, BodyRegion, TreatmentPlan, Episode…
 │   ├── Services/              ← logic with no UI
 │   │   ├── Intelligence/      ← SymptomParser, AssessmentService, SafetyValidator, TreatmentEngine, CareIntelligenceService
@@ -63,7 +63,9 @@ Lofer/
 ├── docs/
 │   ├── MIGRATION.md           ← what moved from the web prototype, and how
 │   └── artifact-reference/    ← the original web prototype, kept for reference
-└── tools/                     ← helper scripts (e.g. regenerate the body mesh)
+├── backend/                   ← Care Intelligence server (POST /api/care), mock provider for now
+├── tools/                     ← helper scripts (e.g. regenerate the body mesh)
+└── website/                   ← the marketing landing page (see website/README.md)
 ```
 
 ### Quick finder
@@ -104,7 +106,7 @@ Voice never controls the hardware. What you say becomes text, the text becomes a
 
 | Interface | Now | Later |
 |---|---|---|
-| `CareIntelligenceService` | `MockCareIntelligenceService` (keyword parser) | `APICareIntelligenceService` (an LLM behind Lofer's backend) |
+| `CareIntelligenceService` | `APICareIntelligenceService` → local backend's `MockCareIntelligenceProvider` (fallback: on-device `LocalCareIntelligenceService`) | the same, with a real LLM provider behind the backend |
 | `VoiceAgent` | `MockVoiceAgent` (typed text stands in for speech) | `ElevenLabsVoiceAgent` or another provider |
 | `DeviceInterface` | `MockLoferDevice` | `PhysicalLoferDevice` (Bluetooth) |
 
@@ -113,6 +115,13 @@ All of them are created in one place: [`Lofer/App/AppModel.swift`](Lofer/App/App
 **Never put API keys in the app or in Git.** Real providers should get short-lived tokens from Lofer's own backend. `.gitignore` already excludes `.env` and `Secrets.*` files.
 
 ---
+
+### Care Intelligence backend (optional while developing)
+
+In Debug builds the app asks Lofer's local backend (`http://127.0.0.1:8787`) to understand what
+you say and propose the next check; if it isn't running, the app quietly uses its on-device
+understanding instead. Start it with `cd backend && npm install && npm start`. See
+[backend/README.md](backend/README.md) and [docs/PHASE-2-3-ARCHITECTURE.md](docs/PHASE-2-3-ARCHITECTURE.md).
 
 ## 4. Development Workflow (Git + GitHub)
 
