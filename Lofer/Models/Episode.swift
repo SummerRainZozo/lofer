@@ -48,12 +48,22 @@ struct Episode: Codable, Identifiable {
     struct MovementCheck: Codable { var name: String; var before: MovementResult?; var after: MovementResult? }
     var movement: MovementCheck? = nil
 
+    /// How Lofer got to its decision: checks, observations, evidence, possible contributing
+    /// patterns, readiness and how it ended. Optional, so older saved episodes still load.
+    /// Together with symptom → intervention → outcome this is the session's full record:
+    /// state → investigation → observation → intervention → outcome.
+    var investigation: InvestigationState? = nil
+
     struct Sensors: Codable { var avgPressure: Int; var peakPressure: Int; var skinPeak: Double? }
     struct Outcome: Codable {
         var response: String?          // much / little / same / worse
         var pathway: String
         var sensors: Sensors? = nil
         var lofersNote: String? = nil  // the hedged "why it might feel this way" (not a diagnosis)
+        var stopReason: String? = nil  // why a session ended early ("warning sign reported during the session")
+        /// This outcome paused automatic sessions for the area (enforced by SafetyValidator).
+        /// Optional so older saved episodes, which don't have it, still load.
+        var pausesAutomaticCare: Bool? = nil
     }
     var outcome: Outcome
 }

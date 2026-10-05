@@ -12,11 +12,13 @@ final class AppModel {
     var screen: Screen = .splash
     var path: [Page] = []
 
-    // Shared services
+    // Shared services. `voice` is any VoiceAgent: the mock now, a real provider later.
     let memory = BodyMemoryStore()
-    let voice = MockVoiceAgent()
+    let voice: any VoiceAgent
     let device: DeviceInterface = MockLoferDevice()
-    let intelligence: CareIntelligenceService = MockCareIntelligenceService()
+    /// Care Intelligence: Lofer's backend in Debug builds (POST /api/care, run `npm start` in
+    /// backend/), with the on-device service as fallback. See CareIntelligenceConfig.
+    let intelligence: CareIntelligenceService = CareIntelligenceConfig.fromLaunchArguments().makeService()
     let body = BodySceneController()
     @ObservationIgnored private(set) lazy var care: CareFlowModel = {
         let c = CareFlowModel(memory: memory, intelligence: intelligence, device: device, voice: voice, body: body)
@@ -34,11 +36,16 @@ final class AppModel {
     struct InputState { var visible = false; var voiceMode = false; var suggestion: String? }
 
     static let greetings = ["How is your body feeling today?", "Tell me what’s been going on and how you’re feeling.", "Anything bothering you today?"]
-    static let homeSamples = ["I played tennis yesterday and my right shoulder has felt tight since.", "The back of my left knee is sore after my run.",
+    static let homeSamples = [AppModel.investigationStory, "The back of my left knee is sore after my run.",
                               "My lower back is stiff from sitting all day.", "My wrist feels weird after working all day."]
     @ObservationIgnored private var sampleIndex = 0
+    static let investigationStory = "I played tennis for two hours yesterday. The back of my right shoulder started feeling tight afterwards. It's mostly okay normally but hurts a little when I lift my arm above my head."
+    /// The pending "heard you → act on it" step. Cancelled when newer input arrives or the user leaves.
+    @ObservationIgnored private var transcriptTask: Task<Void, Never>?
 
-    init() {
+    /// The voice provider is chosen here (default: the mock). Pass another VoiceAgent to swap it.
+    init(voice: any VoiceAgent = MockVoiceAgent()) {
+        self.voice = voice
         voice.onTranscript = { [weak self] text, final in
             Task { @MainActor in self?.transcript(text, final: final) }
         }
@@ -48,23 +55,27 @@ final class AppModel {
         //   -LoferDemoFull  plays a whole conversation, through the movement check to treatment
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-LoferDemo") || args.contains("-LoferDemoFull") {
+            memory.samplesInformDecisions = true   // the demo story relies on the sample history
+            // The full demo follows one investigation: story → confirm the spot → movement
+            // check → observation → summary → suggestion → session.
             let script: [(Double, String)] = args.contains("-LoferDemoFull")
-                ? [(5, Self.homeSamples[0]), (7, "Mostly when I lift it above my head."), (6, "Quite a lot."), (6, "It's actually more towards the back."),
-                   (6, "Yes, that's it."), (6, "Yes, that's right."), (7, "It starts pulling about halfway."), (7, "Okay, let's start.")]
+                ? [(5, Self.investigationStory), (8, "Yes, that's it."), (7, "It starts pulling about halfway."),
+                   (7, "Yes, it eased straight away."), (7, "Yes, that's right."), (7, "Okay, let's start.")]
                 : [(5, Self.homeSamples[0])]
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(4)); self.screen = .home
-                for (wait, line) in script { try? await Task.sleep(for: .seconds(wait)); self.voice.simulate(line) }
+                for (wait, line) in script { try? await Task.sleep(for: .seconds(wait)); self.voice.submitText(line, replay: .asSpeech) }
             }
         }
     }
 
     // MARK: navigation
     func finishSplash() { if screen == .splash { withAnimation(Motion.slow) { screen = .home } } }
-    func goHome() { care.reset(); input.visible = false; homeHeard = ""; homeContext = ""; homeLine = Self.greetings[0]; withAnimation(Motion.slow) { screen = .home } }
-    func openBody() { care.beginWithBody(); withAnimation(Motion.slow) { screen = .care } }
+    func goHome() { transcriptTask?.cancel(); care.reset(); input.visible = false; homeHeard = ""; homeContext = ""; homeLine = Self.greetings[0]; withAnimation(Motion.slow) { screen = .home } }
+    func openBody() { transcriptTask?.cancel(); care.beginWithBody(); withAnimation(Motion.slow) { screen = .care } }
     func treatAgain(_ e: Episode) {
         path = []
+        transcriptTask?.cancel()
         care.beginWithBody()
         withAnimation(Motion.slow) { screen = .care }
         Task { await care.applyTarget(.id(e.symptom.areaId)) }
@@ -78,16 +89,18 @@ final class AppModel {
         input = InputState(visible: true, voiceMode: true, suggestion: suggestion())
     }
     func keyboardTapped() { input = InputState(visible: true, voiceMode: false, suggestion: nil) }
-    func submitTyped(_ text: String) { input.visible = false; voice.transcribe(text) }
-    func useSuggestion() { if let s = input.suggestion { input.visible = false; voice.simulate(s) } }
+    func submitTyped(_ text: String) { input.visible = false; voice.submitText(text, replay: .instant) }
+    func useSuggestion() { if let s = input.suggestion { input.visible = false; voice.submitText(s, replay: .asSpeech) } }
     func closeInput() { input.visible = false; voice.stopListening() }
 
     private func transcript(_ text: String, final: Bool) {
         if screen == .home { homeHeard = "“\(text)”" } else { care.heard = "“\(text)”" }
         guard final else { return }
         input.visible = false
-        Task { @MainActor in
+        transcriptTask?.cancel()
+        transcriptTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
             if screen == .home {
                 // The story is told on the home screen; Lofer acknowledges, then the body takes over.
                 let r = SymptomParser.parse(text)
@@ -97,12 +110,13 @@ final class AppModel {
                 homeContext = [SymptomParser.typeLabel(r.type).flatMap { r.type == "pain" ? nil : $0 }, r.activity.map { "after \($0)" }, r.onset].compactMap { $0 }.joined(separator: " · ")
                 voice.speak(homeLine)
                 try? await Task.sleep(for: .milliseconds(1400))
+                guard !Task.isCancelled, screen == .home else { return }
                 withAnimation(Motion.slow) { screen = .care }
                 await care.beginWithStory(text)
             } else {
                 await care.hear(text)
             }
-            voice.finishThinkingIfSilent()
+            voice.transcriptHandled()
         }
     }
 
@@ -114,7 +128,8 @@ final class AppModel {
         switch c.step {
         case .clarify:
             return ["story": "I played tennis yesterday and my shoulder has felt tight since.", "sensation": "It feels tight.", "triggers": "Mostly when I lift it above my head.",
-                    "onset": "Since yesterday.", "severity": "Quite a lot.", "previous": "It’s happened before.", "safety": "No, none of those."][c.question?.field ?? ""] ?? "Okay."
+                    "onset": "Since yesterday.", "severity": "Quite a lot.", "previous": "It’s happened before.", "safety": "No, none of those."][c.question?.field ?? ""]
+                ?? (c.question?.field.hasPrefix("observation:") == true ? "Yes, it eased straight away." : "Okay.")
         case .locate, .listening: return c.sel != nil ? "Yes, that’s it." : !c.lit.isEmpty ? "It’s actually more towards the back." : "My right shoulder."
         case .confirm: return "Yes, that’s right."
         case .correct: return "It’s more on the outside, actually."

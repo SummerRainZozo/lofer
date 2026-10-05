@@ -15,7 +15,11 @@ struct ParsedUtterance {
     var activity: String? = nil
     var triggers: [String] = []
     var previous = false
-    var flags: [SafetyFlag] = []
+    var flags: [SafetyFlag] = []           // warning signs the user reported ("my hand is numb")
+    var negatedFlags: [SafetyFlag] = []    // warning signs the user ruled out ("no numbness")
+    var uncertainFlags: [SafetyFlag] = []  // warning signs the user wasn't sure about ("not sure if it's numb")
+    var unsure = false                     // "not sure", "don't know"
+    var skip = false                       // "skip", "rather not say"
     var prefs: TreatmentPrefs? = nil
     var feedback: String? = nil            // too strong / too weak / good / worse
     var response: String? = nil            // much / little / same / worse
@@ -30,7 +34,7 @@ struct ParsedUtterance {
     var movement: MovementResult? = nil
 
     var isDescriptive: Bool {
-        entry != nil || type != nil || activity != nil || !triggers.isEmpty || onset != nil || !story.isEmpty || !flags.isEmpty
+        entry != nil || type != nil || activity != nil || !triggers.isEmpty || onset != nil || !story.isEmpty || !flags.isEmpty || !uncertainFlags.isEmpty
     }
 }
 
@@ -189,6 +193,42 @@ enum SymptomParser {
         (.caution, "getting worse|worse (every|each) day|keeps getting worse", "Getting worse over time"),
     ]
 
+    // MARK: negation and uncertainty
+    /// Words that, earlier in the same clause, rule a sign out ("no numbness", "it isn't swollen").
+    static let negators = "\\b(no|not|never|without|none|nor|neither|haven'?t|hasn'?t|hadn'?t|didn'?t|don'?t|doesn'?t|isn'?t|wasn'?t|aren'?t|weren'?t)\\b"
+    /// Words that make a sign uncertain rather than reported ("not sure if it's numb", "maybe a bit swollen").
+    static let uncertainty = "not (really |quite |totally |too )?sure|unsure|not certain|don'?t know|no idea|can'?t tell|\\bmaybe\\b|\\bmight\\b|possibly|perhaps|wonder"
+    enum Mention { case reported, negated, uncertain }
+
+    /// Splits what was said into clauses, so "no numbness but it's swollen" reads as two separate statements.
+    static func clauses(_ raw: String) -> [String] {
+        raw.lowercased().replacingOccurrences(of: "’", with: "'")
+            .replacingOccurrences(of: "[.,;:!?]+|\\b(but|and|although|though|however|except)\\b", with: "|", options: .regularExpression)
+            .split(separator: "|").map { " " + normalise(String($0)) + " " }
+    }
+    static func normalise(_ s: String) -> String {
+        s.lowercased().replacingOccurrences(of: "’", with: "'").replacingOccurrences(of: "‘", with: "'")
+            .replacingOccurrences(of: "[^a-z0-9/' ]+", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+    }
+    /// How `pattern` is meant across the whole utterance. Any clause that reports it wins
+    /// (so "no swelling, but it is numb" still reports numbness); nil = not mentioned.
+    /// Only the few words just before the sign count, so "not long after tennis my arm went numb"
+    /// still reports numbness: missing a real warning sign is the worse mistake.
+    static func mention(of pattern: String, in clauses: [String]) -> Mention? {
+        var result: Mention?
+        for c in clauses {
+            guard let r = c.range(of: pattern, options: [.regularExpression, .caseInsensitive]) else { continue }
+            let words = c[..<r.lowerBound].split(separator: " ")
+            let near = { (n: Int) in " " + words.suffix(n).joined(separator: " ") + " " }
+            let m: Mention = near(6).has(uncertainty) ? .uncertain : near(4).has(negators) ? .negated : .reported
+            if m == .reported { return .reported }
+            if m == .uncertain || result == nil { result = m }
+        }
+        return result
+    }
+
     static func severity(_ t: String) -> Int? {
         if let g = t.groups("\\b(10|[0-9])( ?/ ?10| out of (ten|10))\\b") ?? t.groups("\\b(?:about|around|maybe|like) (?:a )?(10|[0-9])\\b") ?? t.groups("^ ?(10|[0-9]) ?$") {
             return Int(g[1])
@@ -227,8 +267,9 @@ enum SymptomParser {
         else if t.has("longer") { p.longer = true; any = true }
         return any ? p : nil
     }
+    static let notWorse = "\\b(not|no|isn'?t|doesn'?t feel|never) (any )?worse"
     static func feedback(_ t: String) -> String? {
-        if t.has("worse|more pain|more painful|hurts more|increas|getting sore|starting to hurt|really hurts") { return "worse" }
+        if t.has("worse|more pain|more painful|hurts more|increas|getting sore|starting to hurt|really hurts") && !t.has(notWorse) { return "worse" }
         if t.has("too (strong|much|hard|intense)|slightly too|bit much|softer|ease off|ouch|gentler|turn it down") { return "too strong" }
         if t.has("too (weak|soft|light|gentle)|can'?t feel|barely|stronger|firmer|turn it up") { return "too weak" }
         if t.has("\\b(good|nice|fine|great|perfect|lovely|ok|okay|comfortable|just right)\\b") { return "good" }
@@ -236,7 +277,7 @@ enum SymptomParser {
     }
     static func response(_ t: String) -> String? {
         if t.has("much better|way better|loads better|a lot better|great|amazing|fixed|gone") { return "much" }
-        if t.has("worse") { return "worse" }
+        if t.has("worse") && !t.has(notWorse) { return "worse" }
         if t.has("same|no (different|change)|not really|didn'?t help|nothing changed") { return "same" }
         if t.has("better|easier|looser|eased") { return "little" }
         return nil
@@ -299,13 +340,24 @@ enum SymptomParser {
         r.confirm = t.has("\\b(yes|yep|yeah|yup|correct|exactly|perfect)\\b|that'?s (it|the spot|right)|spot on|right there|looks (right|good)|sounds good")
         r.deny = t.has("\\b(no|nope|not quite|not really|wrong)\\b")
         r.start = t.has("\\b(start|begin|go ahead|let'?s go|let'?s do it|try (it|this)|ready)\\b")
-        r.type = types.first { t.has($0.pattern) }?.id
+        let cl = clauses(raw)
+        // "Not sharp, more achy" → achy: a feeling that's ruled out isn't the feeling.
+        r.type = types.first { mention(of: $0.pattern, in: cl) == .reported }?.id
         r.severity = severity(t)
         r.onset = onset(t)
         r.activity = activities.first { t.has($0.0) }?.1
         for (p, label) in triggerPatterns where t.has(p) && !r.triggers.contains(label) { r.triggers.append(label) }
         r.previous = t.has("again|keeps|always|every time|recurring|comes back|keeps coming back|usual|as usual|same as last")
-        for (level, p, label) in flagPatterns where t.has(p) { r.flags.append(SafetyFlag(level: level, label: label)) }
+        for (level, p, label) in flagPatterns {
+            switch mention(of: p, in: cl) {
+            case .reported?: r.flags.append(SafetyFlag(level: level, label: label))
+            case .negated?: r.negatedFlags.append(SafetyFlag(level: level, label: label))
+            case .uncertain?: r.uncertainFlags.append(SafetyFlag(level: level, label: label))
+            case nil: break
+            }
+        }
+        r.unsure = t.has(uncertainty)
+        r.skip = t.has("\\bskip|rather not (say|answer)|next question")
         r.prefs = prefs(t)
         r.feedback = feedback(t)
         r.response = response(t)

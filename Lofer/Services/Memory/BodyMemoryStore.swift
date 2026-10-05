@@ -8,6 +8,10 @@ final class BodyMemoryStore {
     private(set) var episodes: [Episode] = []
     private(set) var routines: [String: SavedRoutine] = [:]
     private(set) var profile = UserProfile()
+    /// Sample episodes appear in History (marked "Sample") but never inform real decisions:
+    /// suggestions, check-in timing, recurrence or paused care. Only the explicit demo modes
+    /// (-LoferDemo / -LoferDemoFull, set in AppModel) turn this on.
+    @ObservationIgnored var samplesInformDecisions = false
     @ObservationIgnored private let defaults: UserDefaults
     private let kEpisodes = "lofer.memory.v1", kRoutines = "lofer.routines.v1", kProfile = "lofer.profile.v1"
     private let atlas = BodyAtlas.shared
@@ -30,14 +34,53 @@ final class BodyMemoryStore {
 
     // MARK: episodes
     var all: [Episode] { episodes.sorted { $0.createdAt > $1.createdAt } }
-    func add(_ e: Episode) { episodes.append(e); save() }
+    /// Saves an episode. Saving the same episode again (same id) updates it, so a double tap
+    /// or a later safety stop never creates a duplicate.
+    func add(_ e: Episode) {
+        if let i = episodes.firstIndex(where: { $0.id == e.id }) { episodes[i] = e } else { episodes.append(e) }
+        save()
+    }
     func remove(_ id: String) { episodes.removeAll { $0.id == id }; save() }
     func clear() { episodes = []; save() }
     func restoreSamples() { episodes = episodes.filter { !$0.sample } + BodyMemoryStore.seed(); save() }
+    /// Episodes that may inform decisions (real ones; samples only in demo mode).
+    private var decisionEpisodes: [Episode] { all.filter { samplesInformDecisions || !$0.sample } }
     /// Earlier treated episodes for the same joint/segment, newest first.
     func history(for areaId: String) -> [Episode] {
         let g = atlas.group(of: areaId)
-        return all.filter { $0.intervention != nil && atlas.group(of: $0.symptom.areaId) == g }
+        return decisionEpisodes.filter { $0.intervention != nil && atlas.group(of: $0.symptom.areaId) == g }
+    }
+    /// A few earlier sessions worth sending to Care Intelligence (never the whole history).
+    /// V1 relevance: same joint/segment, or the same activity in the last 30 days; within
+    /// 90 days; at most 3, most relevant first. Samples only count in demo mode.
+    func relevantMemory(for areaId: String?, activity: String?, now: Date = Date(), limit: Int = 3) -> [MemorySummary] {
+        let day = 86400.0
+        let group = areaId.map { atlas.group(of: $0) }
+        func score(_ e: Episode) -> Int {
+            let age = now.timeIntervalSince(e.createdAt)
+            guard age < 90 * day else { return 0 }
+            let sameArea = group != nil && atlas.group(of: e.symptom.areaId) == group
+            let sameActivity = activity != nil && e.symptom.activity == activity
+            guard sameArea || (sameActivity && age < 30 * day) else { return 0 }
+            return (sameArea ? 3 : 0) + (sameActivity ? 2 : 0) + (age < 30 * day ? 1 : 0)
+        }
+        let ranked: [(episode: Episode, score: Int)] = decisionEpisodes.map { ($0, score($0)) }.filter { $0.score > 0 }
+        let sorted = ranked.sorted { a, b in a.score != b.score ? a.score > b.score : a.episode.createdAt > b.episode.createdAt }
+        return sorted.prefix(limit).map { summary($0.episode) }
+    }
+    private func summary(_ e: Episode) -> MemorySummary {
+        let movement: String? = e.movement.map { m in "\(m.name): \(m.before?.phrase ?? "–") → \(m.after?.phrase ?? "–")" }
+        let intervention: String? = e.intervention.map { i in "\(i.planName), \(i.minutesPlanned) min" }
+        return MemorySummary(date: e.createdAt, area: atlas[e.symptom.areaId].label, activity: e.symptom.activity, sensation: e.symptom.type,
+                             movement: movement, intervention: intervention, response: e.outcome.response,
+                             pausedAutomaticCare: e.outcome.pausesAutomaticCare == true)
+    }
+
+    /// The episode that paused automatic sessions for this joint/segment, if any.
+    /// There is no automatic expiry yet (an open policy question); clearing Body Memory removes it.
+    func automaticCarePause(for areaId: String) -> Episode? {
+        let g = atlas.group(of: areaId)
+        return decisionEpisodes.first { $0.outcome.pausesAutomaticCare == true && atlas.group(of: $0.symptom.areaId) == g }
     }
 
     // MARK: routines + profile

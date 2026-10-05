@@ -22,7 +22,10 @@ enum TreatmentEngine {
     struct Suggestion { var options: [TreatmentPlan]; var pick: TreatmentPlan; var headline: String }
 
     /// SUGGEST: a small set of options plus the one Lofer recommends.
-    static func suggest(_ s: SymptomSnapshot, _ tri: TriageResult, profile: UserProfile, history: [Episode], routine: SavedRoutine?) -> Suggestion {
+    /// `investigation` is structured context from the investigation (e.g. the baseline movement).
+    /// It shapes the wording; it never sets modalities, levels or durations.
+    static func suggest(_ s: SymptomSnapshot, _ tri: TriageResult, profile: UserProfile, history: [Episode], routine: SavedRoutine?,
+                        investigation: InvestigationState? = nil) -> Suggestion {
         let base = profile.baseIntensity, len = profile.lengthMinutes, heat = profile.heat
         let stimOk = ["tightness", "soreness", "cramp"].contains(s.type ?? "")
         let noun = regionNoun(s.areaId)
@@ -35,6 +38,12 @@ enum TreatmentEngine {
         options += [gentle, targeted]
         var pick = options[0]
         if routine == nil { pick = (tri.level == .caution || history.isEmpty || ["sharp", "ache", "pain", "burning"].contains(s.type ?? "")) ? gentle : targeted }
+        // Say how it will be compared afterwards, when there's a comfortable-enough baseline.
+        if let b = investigation?.baseline, !b.isUncomfortable {
+            let note = " Afterwards we'll repeat the \(b.name.lowercased()) to compare."
+            for i in options.indices { options[i].reason = (options[i].reason ?? "") + note }
+            if let i = options.firstIndex(where: { $0.id == pick.id }) { pick = options[i] }
+        }
         let headline = pick.kind == .routine ? "Last time your \(pick.name.lowercased()) helped. Shall we start with that?"
             : pick.kind == .gentle ? "I think we can start gently here." : "I think a slightly more focused session suits this."
         return Suggestion(options: options, pick: pick, headline: headline)
@@ -78,11 +87,19 @@ enum TreatmentEngine {
         return [0.3, 0.7]
     }
 
-    struct Reassessment { var pathway: String; var escalate: Bool; var headline: String; var body: String; var offerRoutine = false; var routineName = ""; var observations: [String] = [] }
+    /// `pausesAutomaticCare`: this outcome says Lofer won't run automatic sessions for the area
+    /// again. It's saved with the episode and enforced by SafetyValidator next time.
+    struct Reassessment { var pathway: String; var escalate: Bool; var headline: String; var body: String; var offerRoutine = false; var routineName = ""; var observations: [String] = []; var pausesAutomaticCare = false }
+    /// The same movement check, before and after a session.
+    struct MovementComparison { var name: String; var before: MovementResult; var after: MovementResult
+        var worse: Bool { feelOrder[after.feel]! > feelOrder[before.feel]! } }
+    static let feelOrder: [MovementResult.Feel: Int] = [.fine: 0, .little: 1, .quite: 2, .cannot: 3]
     private static func ord(_ n: Int) -> String { let s = (n % 100 > 10 && n % 100 < 14) ? "th" : ["th", "st", "nd", "rd"][safe: n % 10] ?? "th"; return "\(n)\(s)" }
 
-    /// REASSESS: pick the pathway after a session.
-    static func reassess(response: String, _ s: SymptomSnapshot, history: [Episode], now: Date = Date()) -> Reassessment {
+    /// REASSESS: pick the pathway after a session. Every piece of evidence counts: feeling
+    /// better overall doesn't cancel a movement that got worse or a new warning sign.
+    static func reassess(response: String, _ s: SymptomSnapshot, history: [Episode], movement: MovementComparison? = nil,
+                         newWarning: String? = nil, now: Date = Date()) -> Reassessment {
         let areaId = s.areaId ?? "body", group = atlas.group(of: areaId), gLabel = atlas[group].label.lowercased(), noun = regionNoun(areaId)
         let day = 86400.0
         let prior = history.filter { $0.intervention != nil && now.timeIntervalSince($0.createdAt) < 90 * day }
@@ -100,27 +117,42 @@ enum TreatmentEngine {
         let recurring = occurrences >= 3 || ctxCount >= 2
         let typeWord = ["tightness": "tight", "soreness": "sore", "ache": "achy", "sharp": "painful", "cramp": "crampy"][s.type ?? ""] ?? "uncomfortable"
         let recurText = recurring ? "This is the \(ord(occurrences)) time your \(gLabel) has become \(typeWord)\(ctx.map { " after \($0)" } ?? " recently").\(best.map { " Earlier sessions responded best to \($0)." } ?? "")" : ""
+        let pauseLine = "I'll pause automatic sessions for your \(gLabel)."
+        let movementLine = movement.map { "The \($0.name.lowercased()) felt \($0.after.phrase) afterwards, compared with \($0.before.phrase) before." }
+        if response == "worse" {
+            return Reassessment(pathway: "escalate", escalate: true, headline: "You said it feels worse, so let's stop here.",
+                                body: [movement?.worse == true ? movementLine : nil, "\(pauseLine) It's worth having it looked at by a physiotherapist, and I can put together a short summary for them."].compactMap { $0 }.joined(separator: " "),
+                                pausesAutomaticCare: true)
+        }
+        if movement?.worse == true || newWarning != nil {
+            let felt = ["much": "much better", "little": "a little better", "same": "about the same"][response] ?? "different"
+            let conflict = movement?.worse == true ? movementLine! : "You also mentioned \(newWarning!.lowercased())."
+            return Reassessment(pathway: "review", escalate: true,
+                                headline: movement?.worse == true ? "Your movement felt worse afterwards. Let's stop and review that." : "You mentioned something new. Let's stop and review that.",
+                                body: "You said it feels \(felt). \(conflict) \(pauseLine) A physiotherapist can take a proper look, and I can prepare a summary for them.",
+                                pausesAutomaticCare: true)
+        }
         switch response {
-        case "worse":
-            return Reassessment(pathway: "escalate", escalate: true, headline: "That's made it worse, so let's stop here.",
-                                body: "I don't want to push this with something stronger. It's worth having it looked at by a physiotherapist, and I can put together a short summary for them.")
         case "same" where notHelping >= 1:
             return Reassessment(pathway: "escalate", escalate: true, headline: "It doesn't sound like this helped much. Let's not keep pushing it.",
-                                body: "This is the \(notHelping + 1 == 2 ? "second" : ord(notHelping + 1)) session in a row that hasn't eased your \(gLabel), so I'll pause automatic care here. A physiotherapist can take a proper look, and I can prepare a summary for them.")
+                                body: "This is the \(notHelping + 1 == 2 ? "second" : ord(notHelping + 1)) session in a row that hasn't eased your \(gLabel). \(pauseLine) A physiotherapist can take a proper look, and I can prepare a summary for them.",
+                                pausesAutomaticCare: true)
         case "much":
-            return Reassessment(pathway: "positive", escalate: false, headline: "Lovely. Your \(noun) responded well today, and I've remembered what worked.",
+            return Reassessment(pathway: "positive", escalate: false, headline: "Good. You said it feels much better, and I've saved what we did.",
                                 body: recurring ? "\(recurText) Shall I save today's session as your \(routineName.lowercased())?" : "", offerRoutine: recurring, routineName: routineName)
         case "little":
             return Reassessment(pathway: recurring ? "recurring" : "partial", escalate: false, headline: "Good, it’s eased a little.",
-                                body: recurring ? "\(recurText) Shall I save this as your \(routineName.lowercased()), so it's ready next time?" : "Another gentle session later today or tomorrow often helps. I'll keep an eye on how it goes.",
+                                body: recurring ? "\(recurText) Shall I save this as your \(routineName.lowercased()), so it's ready next time?" : "I've saved what we did and how it felt.",
                                 offerRoutine: recurring, routineName: routineName)
         default:
             return Reassessment(pathway: "partial", escalate: false, headline: "No real change yet.",
-                                body: "That's normal after one session. Let's try a gentle one tomorrow. If it still feels the same after that, it's worth getting it checked.")
+                                body: "I've noted that. If it's still the same after your next session, I'll suggest getting it checked rather than repeating it.")
         }
     }
 
     /// WHY IT MIGHT FEEL THIS WAY — one or two plausible, hedged sentences. Never a diagnosis.
+    /// Worsening gets no explanation: Lofer doesn't talk it away, it stops and reviews it.
+    /// Nothing here promises that another session will help.
     static func explain(response: String, _ s: SymptomSnapshot, plan: TreatmentPlan?, before: MovementResult?, after: MovementResult?) -> String {
         let order: [MovementResult.Feel: Int] = [.fine: 0, .little: 1, .quite: 2, .cannot: 3]
         let mv: Int? = { guard let b = before, let a = after else { return nil }; return (order[b.feel]! - order[a.feel]!).signum() }()
@@ -135,18 +167,12 @@ enum TreatmentEngine {
         case "much", "little":
             lines.append("\(how) can help tight muscles relax and bring more blood flow to the area, which often makes things feel \(response == "much" ? "noticeably easier" : "a bit easier") for a while.")
             if mv == 1 { lines.append("That may be why the movement felt easier just now.") }
-            else if mv == 0 { lines.append("The movement might take a little longer to catch up. That's quite common.") }
-            else if mv == -1 { lines.append("If the movement felt a bit more noticeable, the area may simply be more aware after being worked on.") }
-            if response == "little" { lines.append(sore ? "Soreness after \(act ?? "exercise") often eases over a day or two, so it may keep improving." : desk ? "Stiffness from sitting often eases further with regular movement through the day." : "It may keep easing with rest and gentle movement.") }
         case "same":
             lines.append(sore ? "Muscles worked hard during \(act ?? "exercise") can stay tight for a day or two, and one session doesn't always shift that."
                          : desk ? "Stiffness that builds up over long periods of sitting can take more than one session to ease."
                          : "Sometimes the tightness sits slightly away from where we worked, or your \(noun) needs a little more time.")
-            if mv == 1 { lines.append("The movement did feel a little easier, which may be an early sign it’s settling.") }
-        case "worse":
-            lines.append("A treated area can feel tender for a while afterwards, a bit like after a massage, and that often settles within a day.")
-            lines.append("But if it keeps getting worse, it may need a different approach, which is why I'd rather not push further today.")
-        default: break
+            if mv == 1 { lines.append("The movement did feel a little easier.") }
+        default: break   // "worse": no explanation (see above)
         }
         return lines.prefix(2).joined(separator: " ")
     }

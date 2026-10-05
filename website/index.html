@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lofer: Personal Muscle Care</title>
+    <meta
+      name="description"
+      content="Lofer, in development, is an AI-powered smart wearable for personalised muscle care. Describe what you feel, and it guides you to where and how to apply care, delivers it, and checks what changed."
+    />
+    <meta name="theme-color" content="#f3ebe2" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Fonts: the same as the iOS app (Lofer/DesignSystem/Typography.swift):
+         Figtree for all text, Quicksand Light for the "Lofer" wordmark. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300;0,400;0,500;1,300;1,500;1,600&family=Quicksand:wght@300;400&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- ───────────── Navigation ───────────── -->
+    <header class="nav">
+      <a class="nav__brand" href="#top" aria-label="Lofer home">
+        <span class="nav__mark" data-logo-mark></span>
+        <span class="wordmark">Lofer</span>
+      </a>
+      <nav class="nav__links" aria-label="Main">
+        <a href="#why">Why Lofer</a>
+        <a href="#checks">Guided checks</a>
+        <a href="#loop">The care loop</a>
+        <a href="#device">Inside Lofer</a>
+      </nav>
+      <a class="button button--small" href="#waitlist">Updates</a>
+    </header>
+
+    <main id="top">
+      <!-- ───────────── Hero: the device in the middle, the words in a row underneath ───────────── -->
+      <section class="hero" aria-labelledby="hero-title">
+        <!-- device3d.js draws the 3D device in here (or main.js adds an SVG fallback). -->
+        <div class="hero__stage" data-device-stage aria-hidden="true"></div>
+
+        <div class="hero__footer">
+          <div class="hero__headline">
+            <p class="status-pill">In development</p>
+            <h1 class="hero__title" id="hero-title">Know what to do when something aches, accessible at any time.</h1>
+          </div>
+          <div class="hero__side">
+            <p class="hero__lede">
+              Lofer is an AI-powered smart wearable for personalised muscle care. Describe what you feel, and it guides
+              you to where and how to apply care, delivers warmth and vibration right there, then checks what changed.
+            </p>
+            <a class="button" href="#waitlist">Follow our progress</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────── Mission: bridging the gap ───────────── -->
+      <section class="section gap" id="why" aria-labelledby="gap-title">
+        <div class="section__head section__head--wide reveal">
+          <p class="eyebrow">Our mission</p>
+          <h2 class="section__title" id="gap-title">Everyday aches shouldn't leave you guessing.</h2>
+          <div class="section__lede section__lede--wide">
+            <p>
+              A physiotherapist can tell you where a problem is likely coming from and how to work on it, but that takes
+              an appointment, time and money. Home tools like massage guns and heat pads are always to hand, but they leave
+              every decision to you: where to work, which setting, how long, and when to stop.
+            </p>
+            <p>
+              Lofer is designed to bridge that gap. It listens to how you describe your symptoms, asks the follow-up
+              questions that matter, and guides you to the most plausible area to focus on, and how to work on it. Then it
+              delivers the care itself, within safety limits, and checks how it went. When something sounds like it needs a
+              professional, it says so.
+            </p>
+          </div>
+        </div>
+
+        <h3 class="gap__subtitle reveal">The best of both, at home.</h3>
+
+        <!-- Two familiar options stacked on the left (what they do well ✓, what they can't ✕),
+             an arrow, then Lofer on the right. The left column stretches to the Lofer card's height. -->
+        <div class="gap__layout">
+          <div class="gap__options">
+            <article class="gap__option reveal">
+              <h4>Professional care</h4>
+              <p class="gap__kind">Physiotherapy and similar</p>
+              <ul class="checklist">
+                <li class="is-yes">Expert, hands-on assessment</li>
+                <li class="is-yes">A plan made for you</li>
+                <li class="is-no">Costly, session after session</li>
+                <li class="is-no">Booking, travel and waiting</li>
+                <li class="is-no">Not there when it flares up at home</li>
+              </ul>
+            </article>
+            <article class="gap__option reveal">
+              <h4>Home care tools</h4>
+              <p class="gap__kind">Massage guns, heat pads, rollers</p>
+              <ul class="checklist">
+                <li class="is-yes">Affordable and always at home</li>
+                <li class="is-yes">Quick to use, whenever you like</li>
+                <li class="is-no">Can't tell you where to focus, or why</li>
+                <li class="is-no">No guidance on setting or how long</li>
+                <li class="is-no">Can't tell if it's helping, or when to stop</li>
+              </ul>
+            </article>
+          </div>
+
+          <div class="gap__bridge reveal" aria-hidden="true">
+            <span class="gap__arrow">
+              <svg viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6" /></svg>
+            </span>
+            <span class="gap__bridge-label">Bridging<br />the gap</span>
+          </div>
+
+          <article class="gap__lofer reveal">
+            <span class="gap__glow" aria-hidden="true"></span>
+            <span class="gap__mark" data-logo-mark></span>
+            <h4><span class="wordmark">Lofer</span></h4>
+            <p class="gap__lofer-lede">Guidance like a professional's, as close to hand as a home tool.</p>
+            <ul class="checklist checklist--lofer">
+              <li class="is-yes">Listens to your symptoms and asks what matters</li>
+              <li class="is-yes">Guides you to the most plausible area, and how to work on it</li>
+              <li class="is-yes">Warmth and vibration from one small wearable</li>
+              <li class="is-yes">At home, whenever it aches</li>
+              <li class="is-yes">Checks before and after every session, within safety limits</li>
+              <li class="is-yes">Tells you when it's time to see a professional</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <!-- ───────────── Guided checks: real app screens ───────────── -->
+      <section class="section" id="checks" aria-labelledby="checks-title">
+        <div class="section__head section__head--wide reveal">
+          <p class="eyebrow">Guided checks</p>
+          <h2 class="section__title" id="checks-title">Where it hurts is where we start.</h2>
+          <p class="section__lede">
+            You describe what you feel. Lofer asks the follow-up questions that change what happens next, and guides a
+            simple movement check before suggesting a session. Some answers lead to a session. Others lead to stopping,
+            and getting it looked at.
+          </p>
+        </div>
+
+        <!-- Screenshots of the current iOS app, captured from its built-in demo (-LoferDemoFull). -->
+        <figure class="screens">
+          <ol class="screens__list">
+            <li class="screen reveal">
+              <img src="/app/1-question.jpg" width="600" height="1305" loading="lazy" alt="Lofer asks: Does anything bring it on? For example lifting or rotating your arm. Quick answers appear below." />
+              <h3>Asks what matters</h3>
+              <p>One question at a time, with quick answers to tap.</p>
+            </li>
+            <li class="screen reveal">
+              <img src="/app/2-where.jpg" width="600" height="1305" loading="lazy" alt="A 3D body zoomed to the right shoulder, with the back of the shoulder highlighted and arrows to move the spot." />
+              <h3>Finds the exact spot</h3>
+              <p>Tap the body, or just say “more towards the back”.</p>
+            </li>
+            <li class="screen reveal">
+              <img src="/app/3-movement-check.jpg" width="600" height="1305" loading="lazy" alt="The Arm raise movement check: an animated figure raises its arm, with four answers from Feels fine to Can't do it comfortably." />
+              <h3>Checks a movement</h3>
+              <p>A guided movement before the session, and again after.</p>
+            </li>
+            <li class="screen reveal">
+              <img src="/app/4-suggested-care.jpg" width="600" height="1305" loading="lazy" alt="Suggested care: Targeted shoulder relief, 15 minutes, moderate, with warmth, with Customise and Start session buttons." />
+              <h3>Suggests a session</h3>
+              <p>Shaped by your answers, and kept within safety limits.</p>
+            </li>
+          </ol>
+          <figcaption class="screens__caption">Screens from the current iOS app prototype.</figcaption>
+        </figure>
+      </section>
+
+      <!-- ───────────── The care loop (six stages) ───────────── -->
+      <section class="section loop" id="loop" aria-labelledby="loop-title">
+        <div class="section__head reveal">
+          <p class="eyebrow">The care loop</p>
+          <h2 class="section__title" id="loop-title">Six steps, one connected process.</h2>
+          <p class="section__lede">
+            Each step feeds the next, so a session begins with information, and what happens afterwards counts.
+          </p>
+        </div>
+
+        <div class="loop__body reveal">
+          <!-- loop.js moves the glowing dot around the circle and lights up each
+               stage (and the matching item in the list) in turn. -->
+          <svg class="loop__diagram" viewBox="-40 0 680 600" data-loop-diagram aria-hidden="true">
+            <defs>
+              <radialGradient id="loop-core" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#e4b598" stop-opacity="0.55" />
+                <stop offset="60%" stop-color="#e4b598" stop-opacity="0.12" />
+                <stop offset="100%" stop-color="#e4b598" stop-opacity="0" />
+              </radialGradient>
+              <filter id="loop-glow" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="6" />
+              </filter>
+            </defs>
+            <circle cx="300" cy="300" r="170" fill="url(#loop-core)" />
+            <!-- The track, drawn clockwise from the top so the dot starts at "Listen". -->
+            <path
+              class="loop__track"
+              data-loop-path
+              d="M300,100 A200,200 0 1,1 300,500 A200,200 0 1,1 300,100"
+            />
+            <!-- Six stages, 60° apart, clockwise from the top. -->
+            <g class="loop__node" data-loop-node transform="translate(300 100)"><circle r="9" /><text y="-26" text-anchor="middle">Listen</text></g>
+            <g class="loop__node" data-loop-node transform="translate(473 200)"><circle r="9" /><text x="22" y="-8" text-anchor="start">Consider</text></g>
+            <g class="loop__node" data-loop-node transform="translate(473 400)"><circle r="9" /><text x="22" y="22" text-anchor="start">Check</text></g>
+            <g class="loop__node" data-loop-node transform="translate(300 500)"><circle r="9" /><text y="44" text-anchor="middle">Act</text></g>
+            <g class="loop__node" data-loop-node transform="translate(127 400)"><circle r="9" /><text x="-22" y="22" text-anchor="end">Reassess</text></g>
+            <g class="loop__node" data-loop-node transform="translate(127 200)"><circle r="9" /><text x="-22" y="-8" text-anchor="end">Learn</text></g>
+            <g data-loop-dot>
+              <circle class="loop__dot-glow" r="16" filter="url(#loop-glow)" />
+              <circle class="loop__dot" r="6" />
+            </g>
+            <text class="loop__center" x="300" y="292">Each step</text>
+            <text class="loop__center" x="300" y="328">informs the next</text>
+          </svg>
+
+          <ol class="loop__stages">
+            <li class="loop__stage" data-loop-stage>
+              <span class="loop__number">01</span>
+              <div><h3>Listen</h3><p>Capture what you're feeling and the context around it.</p></div>
+            </li>
+            <li class="loop__stage" data-loop-stage>
+              <span class="loop__number">02</span>
+              <div><h3>Consider</h3><p>Work out what still needs clarifying.</p></div>
+            </li>
+            <li class="loop__stage" data-loop-stage>
+              <span class="loop__number">03</span>
+              <div><h3>Check</h3><p>Ask or test only what changes the next decision.</p></div>
+            </li>
+            <li class="loop__stage" data-loop-stage>
+              <span class="loop__number">04</span>
+              <div><h3>Act</h3><p>Deliver the selected care, when care is the right next step.</p></div>
+            </li>
+            <li class="loop__stage" data-loop-stage>
+              <span class="loop__number">05</span>
+              <div><h3>Reassess</h3><p>Compare how it feels, and the same movement, before and after.</p></div>
+            </li>
+            <li class="loop__stage" data-loop-stage>
+              <span class="loop__number">06</span>
+              <div><h3>Learn</h3><p>Keep the record, so it informs the next decision.</p></div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- ───────────── Personalisation ───────────── -->
+      <section class="section split" id="history" aria-labelledby="history-title">
+        <div class="section__head reveal">
+          <p class="eyebrow">Personal</p>
+          <h2 class="section__title" id="history-title">Your next session starts with a history.</h2>
+          <p class="section__lede">
+            Lofer keeps a record of what you reported, what was checked, what you tried and how it felt afterwards.
+            The next time something aches, it starts from that record, not from scratch. You can also share a summary
+            with a professional.
+          </p>
+        </div>
+
+        <!-- An example of one entry in the record (illustrative). -->
+        <figure class="record reveal">
+          <figcaption class="record__head">
+            <span class="record__title">Shoulder, after tennis</span>
+            <span class="record__tag">Example record</span>
+          </figcaption>
+          <dl class="record__rows">
+            <div><dt>Reported</dt><dd>Tight when lifting the arm overhead</dd></div>
+            <div><dt>Checked</dt><dd>Arm raise: pulling about halfway</dd></div>
+            <div><dt>Tried</dt><dd>Gentle session · warmth and vibration · 10 min</dd></div>
+            <div><dt>Afterwards</dt><dd>“A little better.” Arm raise felt fine.</dd></div>
+          </dl>
+        </figure>
+      </section>
+
+      <!-- ───────────── Inside Lofer: an exploded view of the build ───────────── -->
+      <section class="section build" id="device" aria-labelledby="device-title">
+        <div class="section__head section__head--wide reveal">
+          <p class="eyebrow">Inside Lofer</p>
+          <h2 class="section__title" id="device-title">Built to sense and act.</h2>
+          <p class="section__lede">
+            Each Lofer tile layers warmth, vibration and sensing into a 10.8 mm body. Scroll to take one apart. These are
+            our prototype designs; details will change as we test.
+          </p>
+        </div>
+
+        <!-- build.js draws each layer from the device outline and spreads them apart
+             as you scroll (or shows them apart, with reduced motion). -->
+        <div class="build__stage" data-build>
+          <div class="build__sticky">
+            <div class="build__scene" aria-hidden="true">
+              <div class="build__stack" data-build-stack></div>
+            </div>
+            <ol class="build__labels">
+              <li data-build-label>
+                <span class="build__num">01</span>
+                <div><h3>Lid</h3><p>A soft-touch top shell in the Lofer shape.</p></div>
+              </li>
+              <li data-build-label>
+                <span class="build__num">02</span>
+                <div><h3>Core</h3><p>Two 2.5 mm battery strips, two electronics islands, a 15 × 15 mm Peltier island and a coin vibration motor.</p></div>
+              </li>
+              <li data-build-label>
+                <span class="build__num">03</span>
+                <div><h3>Frame</h3><p>Magnetic edge contacts, three per edge (N · TX, GND, S · RX), designed so tiles can link edge to edge.</p></div>
+              </li>
+              <li data-build-label>
+                <span class="build__num">04</span>
+                <div><h3>Skin side</h3><p>A 20 × 30 mm heater, two Ø8 mm EMG electrodes, and a temperature sensor with thermal cut-off.</p></div>
+              </li>
+            </ol>
+          </div>
+        </div>
+
+        <ul class="modes">
+          <li class="mode reveal"><span class="mode__glow mode__glow--heat"></span><h3>Warmth</h3><p>A film heater and a Peltier element, watched by a temperature sensor with a thermal cut-off.</p></li>
+          <li class="mode reveal"><span class="mode__glow mode__glow--vibration"></span><h3>Vibration</h3><p>A coin vibration motor, from a soft hum to a deeper pulse.</p></li>
+          <li class="mode reveal"><span class="mode__glow mode__glow--compression"></span><h3>Muscle signals</h3><p>Two skin-side EMG electrodes, designed to read muscle activity. Not yet validated.</p></li>
+          <li class="mode reveal"><span class="mode__glow mode__glow--ems"></span><h3>Modular tiles</h3><p>Magnetic edge contacts, and a dock that charges the tiles together.</p></li>
+        </ul>
+        <ul class="controls reveal">
+          <li><strong>Intensity limits</strong> set per area and situation, applied before anything starts.</li>
+          <li><strong>Pause or stop</strong> at any moment, by tap or by voice.</li>
+          <li><strong>Feedback during the session:</strong> say it's too strong, and it eases off. Say it's worse, and it pauses.</li>
+        </ul>
+        <p class="build__note">The hardware is in prototype. Today the app runs with a simulated device.</p>
+      </section>
+
+      <!-- ───────────── Updates (waitlist not open yet) ───────────── -->
+      <section class="waitlist" id="waitlist" aria-labelledby="waitlist-title">
+        <p class="tagline reveal">Move · Recover · Live better</p>
+        <h2 class="waitlist__title reveal" id="waitlist-title">Be among the first to try Lofer.</h2>
+        <!-- Email sign-up isn't connected to anything yet, so it stays honestly closed.
+             See website/README.md before enabling it. -->
+        <div class="waitlist__closed reveal">
+          <button class="button" type="button" disabled>Waitlist opening soon</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span class="wordmark footer__word">Lofer</span>
+      <p>Lofer is in development. © <span data-year></span> Lofer</p>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

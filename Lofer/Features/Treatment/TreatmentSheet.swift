@@ -38,9 +38,11 @@ struct TreatmentSheet: View {
             .padding(12).background(RoundedRectangle(cornerRadius: 18).fill(Color.loferPeach.opacity(0.06))).overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.loferPeach.opacity(0.3)))
         }
         if model.step == .paused && model.pausedForWorse {
+            // Worse during the session: it only carries on once it has settled.
+            Text(CareFlowModel.settleQuestion).font(LoferFont.ui(14.5)).foregroundStyle(Color.loferCream)
             HStack(spacing: 8) {
-                LoferButton(title: "Stop here") { model.endRun() }
-                LoferButton(title: "Carry on gently", primary: true) { model.resumeRun(gentler: true) }
+                LoferButton(title: "Still worse") { model.stillWorse() }
+                LoferButton(title: "It’s settled", primary: true) { model.settled() }
             }
         } else {
             HStack(spacing: 8) {
