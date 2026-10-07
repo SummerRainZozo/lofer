@@ -64,5 +64,5 @@ test('providers are swappable behind the same interface', async () => {
   const res = await (await serve(future))('/api/care', request({ text: TENNIS }));
   assert.equal(res.status, 200);
   assert.equal((await res.json()).provider, 'future-llm');
-  assert.throws(() => createProvider('anthropic'), /isn't implemented yet/, 'no real provider until approved');
+  assert.throws(() => createProvider('anthropic'), /isn't implemented/, 'only configured providers exist');
 });

@@ -14,7 +14,7 @@ struct CareIntelligenceConfig: Equatable {
     enum Mode: String { case local, backend }
     var mode: Mode
     var backendURL: URL
-    var timeout: TimeInterval = 8
+    var timeout: TimeInterval = 25        // an LLM turn takes a few seconds; after this the app falls back on-device
 
     static let defaultBackendURL = URL(string: "http://127.0.0.1:8787")!
 
@@ -51,7 +51,7 @@ enum CareIntelligenceError: Error, Equatable {
 /// Talks to Lofer's backend. Networking only: no care logic lives here.
 struct APICareIntelligenceService: CareIntelligenceService {
     var baseURL: URL
-    var timeout: TimeInterval = 8
+    var timeout: TimeInterval = 25
     var session: URLSession = .shared
 
     func respond(to request: CareRequest) async throws -> CareIntelligenceResponse {
