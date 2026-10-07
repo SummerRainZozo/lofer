@@ -603,3 +603,10 @@ h1, h2, h3, p { margin: 0; }
   font-size: 13px;
 }
 .footer__word { font-size: 30px; color: var(--ink); }
+/* Full-width second row under the wordmark and copyright line. */
+.footer__disclaimer {
+  flex-basis: 100%;
+  max-width: 72ch;
+  font-size: 12px;
+  line-height: 1.6;
+}
