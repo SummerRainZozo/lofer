@@ -1,5 +1,5 @@
 // Animates "The care loop" diagram: a glowing dot travels around the circle,
-// and as it reaches each stage (Listen → Consider → Check → Act → Reassess →
+// and as it reaches each stage (Listen → Analyse → Verify → Soothe → Reassess →
 // Learn) that stage lights up in the diagram AND in the list beside it. Then it
 // starts again: it's a connected loop. The number of stages comes from the
 // diagram itself, so adding or removing a node in index.html just works.
