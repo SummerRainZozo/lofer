@@ -26,11 +26,13 @@ website/
 ├── index.html            ← all the page's text and sections
 ├── public/favicon.svg    ← browser-tab icon (the outline logo)
 ├── public/app/           ← real screenshots of the iOS app, used in "Guided checks"
+├── public/renders/       ← web copies of the product renders (exploded view, tile details). The originals were not committed.
 └── src/
-    ├── main.js           ← entry point: starts the 3D device, logo, care loop and scroll animations
-    ├── device3d.js       ← the translucent, glowing 3D device (three.js)
-    ├── loop.js           ← animates the six-stage care loop (Listen → Consider → Check → Act → Reassess → Learn)
-    ├── build.js          ← the scroll-driven exploded view of the hardware ("Inside Lofer")
+    ├── main.js           ← entry point: starts the 3D tile, logo, Lofer Loop, tiling background and scroll animations
+    ├── device3d.js       ← the rotating 3D tile in the hero: silicone cover, stitched seam, debossed logo, edge contacts, skin side (three.js)
+    ├── tiling.js         ← the faint tiles behind the page. They regroup (3, 4, 5, 7) as you scroll: the cluster spins away and spins in on its new side
+    ├── loop.js           ← animates the six-stage Lofer Loop (Listen → Consider → Check → Act → Reassess → Learn)
+    ├── build.js          ← lights up one layer of the exploded tile render at a time as you scroll ("Inside Lofer")
     ├── logo.js           ← the logo mark (the device outline), as SVG
     ├── deviceShape.js    ← THE product outline (also in the app's LoferMark.swift), used by the 3D model, logo and fallback
     └── styles.css        ← colours, fonts, layout
@@ -42,8 +44,8 @@ website/
 | Colours, fonts, spacing | the top of `src/styles.css` (same colours as the iOS app) |
 | The product's shape | `OUTLINE` in `src/deviceShape.js` |
 | The loop's speed or stages | `src/loop.js` and the `loop` section of `index.html` |
-| How the hero device looks or moves | `src/device3d.js` (comments explain each layer: chamfered graphite body, studio reflections, light seam) |
-| The exploded hardware view | `src/build.js` (layer drawings and component sizes) |
+| How the hero device looks or moves | `src/device3d.js` (colour, shape and artwork of the tile; the real dimensions are in the comments) |
+| The exploded hardware view | `src/build.js`, plus the layer list and marker positions in `index.html` |
 
 ## Design notes
 
@@ -51,12 +53,12 @@ website/
   1. **Hero:** the device in the middle; underneath, the italic line "Know what to do when something aches, accessible at any time." and what Lofer is. Visible *In development* status.
   2. **Our mission:** the bridging story, then professional care and home tools (✓ what they do well, ✕ what they can't) next to Lofer, the best of both.
   3. **Guided checks:** real screens from the iOS app (`public/app/`, captured from the `-LoferDemoFull` demo). Re-capture them when the app's look changes.
-  4. **Care loop:** six stages (`src/loop.js` animates however many nodes the diagram has).
+  4. **The Lofer Loop:** six stages (`src/loop.js` animates however many nodes the diagram has).
   5. **Personal:** what's remembered (reported, checked, tried, afterwards).
-  6. **Inside Lofer:** a scroll-driven exploded view (`src/build.js`) of the prototype build: lid; core (battery strips, electronics islands, Peltier island, coin vibration motor); frame (magnetic edge contacts); skin side (heater, Ø8 mm EMG electrodes, temperature sensor with cut-off).
+  6. **Inside Lofer:** the real exploded render with seven layers (silicone cover, battery, circuit board, insulating foam, rigid chassis, heater film, hydrogel liner), then tile details (colourways, skin side, latching, dock) and a spec list. Micro-current stimulation is planned but not in the current hardware, and the section says so.
 - **Claims rules** (check the app and hardware evidence before changing copy):
   - "AI-powered" is the positioning the founders chose. Today's app uses an on-device keyword parser, with an AI backend planned.
-  - Name only hardware that's in the prototype drawings (warmth: film heater + Peltier; vibration: coin motor; EMG electrodes; temperature sensor). EMG is "designed to read muscle activity", not a validated measurement. Compression and EMS are **not** in the current build, so the site no longer lists them.
+  - Name only hardware that's in the prototype drawings (heat: heater film with thermal cut-off; vibration motor; EMG electrodes in the hydrogel liner). EMG is "designed to read muscle activity", not a validated measurement. Compression and EMS are **not** in the current build, so the site no longer lists them.
   - Say "most plausible area", "designed to", "guides": never diagnosis, root cause, guaranteed relief, "always gentle", "smarter every time", or replacing a physiotherapist.
   - No price or "affordable" claims until pricing exists.
   - Present limits, pause/stop and in-session feedback as features, not as a guarantee of safety.

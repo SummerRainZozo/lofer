@@ -29,8 +29,9 @@
       </a>
       <nav class="nav__links" aria-label="Main">
         <a href="#why">Why Lofer</a>
-        <a href="#checks">Guided checks</a>
-        <a href="#loop">The care loop</a>
+        <a href="#checks">The Lofer App</a>
+        <a href="#loop">The Lofer Loop</a>
+        <a href="#tile">The Lofer Tile</a>
         <a href="#device">Inside Lofer</a>
       </nav>
       <a class="button button--small" href="#waitlist">Get early access</a>
@@ -38,7 +39,7 @@
 
     <main id="top">
       <!-- ───────────── Hero: the device in the middle, the words in a row underneath ───────────── -->
-      <section class="hero" aria-labelledby="hero-title">
+      <section class="hero" data-tiling="hero" aria-labelledby="hero-title">
         <!-- device3d.js draws the 3D device in here (or main.js adds an SVG fallback). -->
         <div class="hero__stage" data-device-stage aria-hidden="true"></div>
 
@@ -59,7 +60,7 @@
       </section>
 
       <!-- ───────────── Mission: the best of both ───────────── -->
-      <section class="section gap" id="why" aria-labelledby="gap-title">
+      <section class="section gap" id="why" data-tiling="why" aria-labelledby="gap-title">
         <div class="section__head section__head--wide reveal">
           <p class="eyebrow">Our mission</p>
           <h2 class="section__title" id="gap-title">Everyday aches shouldn't leave you guessing.</h2>
@@ -133,9 +134,9 @@
       </section>
 
       <!-- ───────────── Guided checks: real app screens ───────────── -->
-      <section class="section" id="checks" aria-labelledby="checks-title">
+      <section class="section" id="checks" data-tiling="checks" aria-labelledby="checks-title">
         <div class="section__head section__head--wide reveal">
-          <p class="eyebrow">Guided checks</p>
+          <p class="eyebrow">The Lofer App</p>
           <h2 class="section__title" id="checks-title">It starts with how you feel.</h2>
           <p class="section__lede">
             You describe what you feel. Lofer asks follow-up questions that refine what happens next, and guides a
@@ -172,10 +173,10 @@
         </figure>
       </section>
 
-      <!-- ───────────── The care loop (six stages) ───────────── -->
-      <section class="section loop" id="loop" aria-labelledby="loop-title">
+      <!-- ───────────── The Lofer Loop (six stages) ───────────── -->
+      <section class="section loop" id="loop" data-tiling="loop" aria-labelledby="loop-title">
         <div class="section__head reveal">
-          <p class="eyebrow">The care loop</p>
+          <p class="eyebrow">The Lofer Loop</p>
           <h2 class="section__title" id="loop-title">Six steps, one connected process.</h2>
           <p class="section__lede">
             Each step feeds the next, so a session begins with information, and what happens afterwards counts.
@@ -245,10 +246,51 @@
             </li>
           </ol>
         </div>
+
+      </section>
+
+      <!-- ───────────── The Lofer tile: what it does, and what it's like up close ───────────── -->
+      <section class="section tile" id="tile" data-tiling="loop" aria-labelledby="tile-title">
+        <div class="section__head section__head--wide reveal">
+          <p class="eyebrow">The Lofer tile</p>
+          <h2 class="section__title" id="tile-title">One small tile, four functions.</h2>
+        </div>
+
+        <!-- What each tile can do. Micro-current is planned, so it says so. -->
+        <ul class="modes">
+          <li class="mode reveal"><span class="mode__glow mode__glow--heat"></span><h3>Heat</h3><p>A 20 × 30 mm heater film, with a thermal cut-off in the chassis.</p></li>
+          <li class="mode reveal"><span class="mode__glow mode__glow--vibration"></span><h3>Vibration massage</h3><p>A vibration motor in the rigid chassis, from a soft hum to a deeper pulse.</p></li>
+          <li class="mode reveal"><span class="mode__glow mode__glow--ems"></span><h3>Micro-current</h3><p>Gentle micro-current stimulation, planned for Lofer. Not yet part of the current hardware or tile design.</p></li>
+          <li class="mode reveal"><span class="mode__glow mode__glow--compression"></span><h3>Muscle signals</h3><p>Two EMG electrodes built into the hydrogel liner, designed to read muscle activity. Not yet validated.</p></li>
+        </ul>
+
+        <!-- The tile up close: four renders. -->
+        <ul class="gallery">
+          <li class="gallery__card reveal">
+            <img src="/renders/colourways.webp" width="1400" height="933" loading="lazy" alt="Five Lofer tiles in a curved row, in clay, sand, oat, sage and cocoa." />
+            <h3>Soft to the touch</h3>
+            <p>A silicone cover wraps the top and sides, with a stitched seam and the logo debossed into it. Shown in five colourways: clay, sand, oat, sage and cocoa.</p>
+          </li>
+          <li class="gallery__card reveal">
+            <img src="/renders/skin-side.webp" width="1200" height="800" loading="lazy" alt="The underside of a Lofer tile, with a hydrogel liner and two grey electrodes, next to the top of another tile." />
+            <h3>A gentle skin side</h3>
+            <p>A hydrogel liner sits against your skin, with two built-in EMG electrodes. The heater film sits behind it.</p>
+          </li>
+          <li class="gallery__card reveal">
+            <img src="/renders/hero-latched.webp" width="1400" height="933" loading="lazy" alt="Three Lofer tiles latched edge to edge, in clay, oat and sage." />
+            <h3>Latches edge to edge</h3>
+            <p>Edge magnets pull tiles together. Each tile has 18 gold contacts, three on each of its six edges, designed so tiles can link up.</p>
+          </li>
+          <li class="gallery__card reveal">
+            <img src="/renders/dock.webp" width="1400" height="933" loading="lazy" alt="Three Lofer tiles standing in a charging dock with a USB-C cable." />
+            <h3>One cable charges four</h3>
+            <p>The dock has spring contacts in every slot, and any edge of a tile fits any slot. A warm amber light shows while it charges, and goes off when full.</p>
+          </li>
+        </ul>
       </section>
 
       <!-- ───────────── Personalisation ───────────── -->
-      <section class="section split" id="history" aria-labelledby="history-title">
+      <section class="section split" id="history" data-tiling="history" aria-labelledby="history-title">
         <div class="section__head reveal">
           <p class="eyebrow">Personal</p>
           <h2 class="section__title" id="history-title">Your next session starts with a history.</h2>
@@ -274,62 +316,73 @@
         </figure>
       </section>
 
-      <!-- ───────────── Inside Lofer: an exploded view of the build ───────────── -->
-      <section class="section build" id="device" aria-labelledby="device-title">
+      <!-- ───────────── Inside Lofer: the real tile, layer by layer ───────────── -->
+      <section class="section build" id="device" data-tiling="device" aria-labelledby="device-title">
         <div class="section__head section__head--wide reveal">
           <p class="eyebrow">Inside Lofer</p>
           <h2 class="section__title" id="device-title">Built to sense and act.</h2>
           <p class="section__lede">
-            Each Lofer tile layers heat, vibration and sensing into a 10.8 mm body. Scroll to take one apart. These
-            schematics are a work in progress, and details will change as we test. Micro-current stimulation is planned
-            for Lofer, but is not yet part of the current hardware or tile design.
+            Each Lofer tile is a soft silicone pad, designed at 56 × 53.5 mm and 6.2 mm thick. Scroll to look through its
+            layers. These schematics are a work in progress, and details will change as we test. Micro-current
+            stimulation is planned for Lofer, but is not yet part of the current hardware or tile design.
           </p>
         </div>
 
-        <!-- build.js draws each layer from the device outline and spreads them apart
-             as you scroll (or shows them apart, with reduced motion). -->
+        <!-- build.js lights up one layer at a time as you scroll: its number on the picture
+             and its label on the right. Marker positions are % of the picture. -->
         <div class="build__stage" data-build>
           <div class="build__sticky">
-            <div class="build__scene" aria-hidden="true">
-              <div class="build__stack" data-build-stack></div>
-            </div>
+            <figure class="build__figure">
+              <div class="build__pic">
+              <img src="/renders/exploded.webp" width="1000" height="1308" alt="Exploded view of one Lofer tile: silicone cover, battery, circuit board, insulating foam, rigid chassis, heater film and hydrogel liner." />
+              <span class="build__marker" data-build-marker style="--x:71.8%;--y:10.4%">1</span>
+              <span class="build__marker" data-build-marker style="--x:58.4%;--y:29.2%">2</span>
+              <span class="build__marker" data-build-marker style="--x:67.9%;--y:38.7%">3</span>
+              <span class="build__marker" data-build-marker style="--x:63.2%;--y:51.6%">4</span>
+              <span class="build__marker" data-build-marker style="--x:72.9%;--y:56.3%">5</span>
+              <span class="build__marker" data-build-marker style="--x:61.4%;--y:74.7%">6</span>
+              <span class="build__marker" data-build-marker style="--x:68.3%;--y:80.5%">7</span>
+              </div>
+            </figure>
             <ol class="build__labels">
               <li data-build-label>
                 <span class="build__num">01</span>
-                <div><h3>Lid</h3><p>A soft-touch top shell in the Lofer shape.</p></div>
+                <div><h3>Soft-touch silicone cover</h3><p>Logo and wordmark debossed. Wraps the top and sides.</p></div>
               </li>
               <li data-build-label>
                 <span class="build__num">02</span>
-                <div><h3>Core</h3><p>Two 2.5 mm battery strips, two electronics islands, a 15 × 15 mm Peltier island and a coin vibration motor.</p></div>
+                <div><h3>Battery</h3><p>20 × 30 × 4 mm LiPo.</p></div>
               </li>
               <li data-build-label>
                 <span class="build__num">03</span>
-                <div><h3>Frame</h3><p>Magnetic edge contacts, three per edge (N · TX, GND, S · RX), designed so tiles can link edge to edge.</p></div>
+                <div><h3>Custom circuit board</h3><p>ESP32-S3, drivers and an EMG front end.</p></div>
               </li>
               <li data-build-label>
                 <span class="build__num">04</span>
-                <div><h3>Skin side</h3><p>A 20 × 30 mm heater, two Ø8 mm EMG electrodes, and a temperature sensor with thermal cut-off.</p></div>
+                <div><h3>Insulating foam</h3><p>Keeps the heater's heat away from the battery.</p></div>
+              </li>
+              <li data-build-label>
+                <span class="build__num">05</span>
+                <div><h3>Rigid chassis</h3><p>Edge magnets, vibration motor and thermal cut-off.</p></div>
+              </li>
+              <li data-build-label>
+                <span class="build__num">06</span>
+                <div><h3>Heater film</h3><p>20 × 30 mm.</p></div>
+              </li>
+              <li data-build-label>
+                <span class="build__num">07</span>
+                <div><h3>Hydrogel liner</h3><p>With two built-in EMG electrodes, against your skin.</p></div>
               </li>
             </ol>
           </div>
         </div>
 
-        <ul class="modes">
-          <li class="mode reveal"><span class="mode__glow mode__glow--heat"></span><h3>Heat</h3><p>A film heater and a Peltier element, watched by a temperature sensor with a thermal cut-off.</p></li>
-          <li class="mode reveal"><span class="mode__glow mode__glow--vibration"></span><h3>Vibration massage</h3><p>A coin vibration motor, from a soft hum to a deeper pulse.</p></li>
-          <li class="mode reveal"><span class="mode__glow mode__glow--compression"></span><h3>Muscle signals</h3><p>Two skin-side EMG electrodes, designed to read muscle activity. Not yet validated.</p></li>
-          <li class="mode reveal"><span class="mode__glow mode__glow--ems"></span><h3>Modular tiles</h3><p>Magnetic edge contacts, and a dock that charges the tiles together.</p></li>
-        </ul>
-        <ul class="controls reveal">
-          <li><strong>Intensity limits</strong> set per area and situation, applied before anything starts.</li>
-          <li><strong>Pause or stop</strong> at any moment, by tap or by voice.</li>
-          <li><strong>Feedback during the session:</strong> say it's too strong, and it eases off. Say it's worse, and it pauses.</li>
-        </ul>
+
         <p class="build__note">The hardware is in prototype, and these schematics are a work in progress. Micro-current stimulation is planned but not yet in the current design. Today the app runs with a simulated device.</p>
       </section>
 
       <!-- ───────────── Updates (waitlist not open yet) ───────────── -->
-      <section class="waitlist" id="waitlist" aria-labelledby="waitlist-title">
+      <section class="waitlist" id="waitlist" data-tiling="waitlist" aria-labelledby="waitlist-title">
         <p class="tagline reveal">Move · Recover · Live better</p>
         <h2 class="waitlist__title reveal" id="waitlist-title">Be among the first to try Lofer.</h2>
         <!-- Email sign-up isn't connected to anything yet, so it stays honestly closed.
