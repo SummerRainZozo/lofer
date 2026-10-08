@@ -2,8 +2,12 @@
 
 Care Intelligence for the Lofer app, behind one endpoint: `POST /api/care`.
 
-In this phase it runs **MockCareIntelligenceProvider**: deterministic rules that return the same
-structured output a real LLM provider will. No LLM, no API keys, no external services.
+Two providers, chosen with `CARE_PROVIDER` in `backend/.env`:
+
+- **openai**: an OpenAI model (default `gpt-5.4-mini`, reasoning effort `low`) through the Responses
+  API with a strict JSON schema. Needs `OPENAI_API_KEY` in `backend/.env` (never in the app, never
+  in Git). Requests are sent with `store: false`.
+- **mock**: deterministic rules with the same structured output. No key, no cost; the tests use it.
 
 ## Run it
 
@@ -13,8 +17,9 @@ Needs Node 24 or newer (it runs the TypeScript files directly, with no build ste
 cd backend
 npm install        # first time only
 npm start          # http://127.0.0.1:8787   (npm run dev restarts on file changes)
-npm test           # backend tests
+npm test           # backend tests (offline: the OpenAI provider is tested with a fake client)
 npm run typecheck  # TypeScript check
+npm run smoke      # one live call to the configured provider (a few cents with OpenAI)
 ```
 
 The iOS app (Debug build) talks to `http://127.0.0.1:8787` by default and falls back to its
@@ -35,8 +40,10 @@ backend/
 │   ├── providers/
 │   │   ├── CareIntelligenceProvider.ts ← the interface a real LLM provider will implement
 │   │   ├── index.ts                   ← picks the provider (CARE_PROVIDER, only "mock" today)
-│   │   └── mock/                      ← MockCareIntelligenceProvider + its keyword extraction
-│   └── prompts/care-intelligence.md   ← draft instructions for the future LLM provider (unused)
+│   │   ├── mock/                      ← MockCareIntelligenceProvider + its keyword extraction
+│   │   ├── openai/                    ← OpenAICareIntelligenceProvider (Responses API, strict JSON schema)
+│   │   └── llm/                       ← provider-neutral: the LLM output schema + prompt builder
+│   └── prompts/care-intelligence.md   ← the LLM's core instructions (prompt.ts adds vocabulary + policy)
 └── tests/                             ← provider scenarios + HTTP/validation/failure tests
 ```
 
