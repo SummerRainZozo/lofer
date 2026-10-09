@@ -17,15 +17,15 @@ const toXY = (angleDeg) => [PITCH * Math.cos((angleDeg * Math.PI) / 180), PITCH 
 // The six neighbour directions (y points down): 90° = below, 270° = above, and so on.
 const [DOWN_RIGHT, DOWN, DOWN_LEFT, UP_LEFT, UP, UP_RIGHT] = [30, 90, 150, 210, 270, 330].map(toXY);
 
-// The seven slots: the centre, then its six neighbours. `colour` is a colourway from the renders.
+// The seven slots: the centre, then its six neighbours. Only outlines are drawn.
 const TILES = [
-  { at: [0, 0], colour: '#d9c8ae' },            // oat
-  { at: DOWN, colour: '#b9735a' },              // clay
-  { at: UP, colour: '#a3a88d' },                // sage
-  { at: DOWN_RIGHT, colour: '#cdb594' },        // sand
-  { at: UP_RIGHT, colour: '#a3a88d' },          // sage
-  { at: UP_LEFT, colour: '#876552' },           // cocoa
-  { at: DOWN_LEFT, colour: '#b9735a' },         // clay
+  { at: [0, 0] },
+  { at: DOWN },
+  { at: UP },
+  { at: DOWN_RIGHT },
+  { at: UP_RIGHT },
+  { at: UP_LEFT },
+  { at: DOWN_LEFT },
 ];
 
 // Each grouping lists the slots that show (by index into TILES).
@@ -50,10 +50,11 @@ const PLAN = {
 
 const planKey = (plan) => `${plan.grouping}|${plan.side}|${plan.tilt}|${plan.peek ?? ''}`;
 
-function tileMarkup({ at, colour }, i) {
+function tileMarkup({ at }, i) {
+  // Thin outline only (no fill), with the two things that identify a tile: the stitched seam and the logo.
   // The logo is the same outline as the tile, just smaller, and both are centred on (0, 0): it sits in the middle.
   return `<g class="tiling__tile" data-tile="${i}" style="--x:${at[0].toFixed(1)}px;--y:${at[1].toFixed(1)}px">
-    <path class="tiling__body" d="${deviceOutlineSvgPath(100)}" fill="${colour}"/>
+    <path class="tiling__body" d="${deviceOutlineSvgPath(100)}"/>
     <path class="tiling__seam" d="${deviceOutlineSvgPath(84)}"/>
     <path class="tiling__mark" d="${deviceOutlineSvgPath(11)}"/>
   </g>`;
