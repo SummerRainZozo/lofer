@@ -5,6 +5,7 @@ import { logoMarkSvg } from './logo.js';
 import { startLoop } from './loop.js';
 import { startBuild } from './build.js';
 import { startTiling } from './tiling.js';
+import { initWaitlist } from './waitlist/modal.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -63,8 +64,7 @@ if (reducedMotion) {
 }
 
 // ── Waitlist ──
-// Sign-up isn't connected to a service yet, so the page shows a disabled
-// "Waitlist opening soon" button (in index.html) and collects nothing. Only show
-// a success message once an email has actually been saved.
+// Every [data-waitlist-open] button opens the two-step form (src/waitlist/modal.js).
+initWaitlist();
 
 document.querySelector('[data-year]').textContent = new Date().getFullYear();
