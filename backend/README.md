@@ -1,6 +1,7 @@
 # Lofer backend
 
-Care Intelligence for the Lofer app, behind one endpoint: `POST /api/care`.
+Care Intelligence for the Lofer app, behind `POST /api/care`, and speech for real voice behind
+`POST /api/voice/token` and `POST /api/voice/speech` (see [docs/PHASE-4-VOICE.md](../docs/PHASE-4-VOICE.md)).
 
 Two providers, chosen with `CARE_PROVIDER` in `backend/.env`:
 
@@ -27,6 +28,17 @@ on-device understanding if the backend isn't running. To change that, open Xcode
 Scheme › Edit Scheme › Arguments: `-LoferIntelligence local` (on-device only) or
 `-LoferBackendURL http://…`.
 
+## Voice (ElevenLabs speech-to-text + text-to-speech only)
+
+`VOICE_PROVIDER` in `backend/.env`: `off` (default), `mock` (fake token + silent audio, used by the
+tests) or `elevenlabs` (needs `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` and `LOFER_CLIENT_KEY`).
+
+- `POST /api/voice/token` → `{ token, expiresInSeconds }`: a single-use Scribe v2 Realtime token.
+- `POST /api/voice/speech` `{ text }` (≤ 500 characters) → streamed 16-bit mono PCM (`X-Sample-Rate`).
+- With `LOFER_CLIENT_KEY` set, every route except `/api/health` needs `Authorization: Bearer <key>`.
+- Per-address rate limits and a daily speech-character budget (see `.env.example`).
+- Logs never contain the API key, the client key, or what the user said.
+
 ## Where things live
 
 ```
@@ -34,7 +46,9 @@ backend/
 ├── src/
 │   ├── server.ts                      ← starts the server
 │   ├── app.ts                         ← routes → handlers (the provider is passed in)
-│   ├── routes/                        ← POST /api/care, GET /api/health, tiny HTTP helpers
+│   ├── routes/                        ← POST /api/care, voice routes, GET /api/health, tiny HTTP helpers
+│   ├── voice/                         ← VoiceProvider: ElevenLabs (speech only) + mock
+│   ├── security/                      ← client key check + rate limits
 │   ├── services/careService.ts        ← validate request → provider → validate response (+ timeout)
 │   ├── schemas/care.ts                ← THE contract (zod); mirrors the Swift CareSchema.swift
 │   ├── providers/

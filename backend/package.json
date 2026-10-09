@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Lofer's backend: Care Intelligence behind POST /api/care. Phase 2-3 runs a mock provider (no LLM, no API keys).",
+  "description": "Lofer's backend: Care Intelligence behind POST /api/care, and ElevenLabs speech (single-use tokens + text-to-speech) behind /api/voice.",
   "engines": {
     "node": ">=23.6"
   },

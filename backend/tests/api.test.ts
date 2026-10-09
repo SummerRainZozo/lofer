@@ -23,7 +23,7 @@ async function serve(provider: CareIntelligenceProvider) {
 test('health reports the provider', async () => {
   const call = await serve(new MockCareIntelligenceProvider());
   const res = await call('/api/health');
-  assert.deepEqual(await res.json(), { ok: true, provider: 'mock', schemaVersion: 1 });
+  assert.deepEqual(await res.json(), { ok: true, provider: 'mock', voice: 'off', schemaVersion: 1 });
 });
 
 test('a valid request gets a schema-valid structured response', async () => {
