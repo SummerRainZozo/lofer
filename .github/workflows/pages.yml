@@ -28,8 +28,16 @@ jobs:
           cache-dependency-path: website/package-lock.json
       - run: npm ci
         working-directory: website
+      - run: npm test
+        working-directory: website
       - run: npm run build
         working-directory: website
+        env:
+          # Public by design (the publishable key can only call the two waitlist functions).
+          # Set them in GitHub: Settings > Secrets and variables > Actions > Variables.
+          # NEVER put the Supabase secret key here or anywhere in the website.
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: website/dist

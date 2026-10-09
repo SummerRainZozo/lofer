@@ -72,3 +72,14 @@ website/
 
 - **No email sign-up yet.** The page shows a disabled "Waitlist opening soon" button and collects nothing. When a form service or Lofer's backend exists, add the form back and only confirm after a successful save (see the note in `src/main.js`).
 - **Hosting.** The site isn't deployed anywhere yet. `npm run build` produces a static folder that Vercel, Netlify, Cloudflare Pages or GitHub Pages can serve.
+
+## Waitlist and privacy policy
+
+- **Waitlist:** every "Join the waitlist" button opens a two-step form (`src/waitlist/`). Step 1 (name + email) is the registration;
+  Step 2 (interest, price range, optional marketing consent) can be skipped. Data goes to Supabase through two database functions;
+  setup, security design and day-to-day queries are in `../supabase/README.md`.
+- **Settings:** `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in `website/.env.local` (git-ignored; see `.env.example`) and, for the
+  live site, GitHub repository variables `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. Without them the form says the waitlist is unavailable
+  and never claims anyone was signed up. The Supabase **secret** key must never be added anywhere in the website.
+- **Privacy policy:** `privacy/index.html` (its own page at `/privacy/`, linked from the footer and the waitlist). Keep it in step with what is really built.
+- **Tests:** `npm test` here (validation and privacy page); `cd ../supabase && npm test` for the database.

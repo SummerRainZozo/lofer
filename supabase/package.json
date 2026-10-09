@@ -1,0 +1,12 @@
+{
+  "name": "lofer-supabase",
+  "private": true,
+  "type": "module",
+  "description": "Database migration and tests for the Lofer waitlist.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.0"
+  }
+}

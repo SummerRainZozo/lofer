@@ -34,7 +34,7 @@
         <a href="#tile">The Lofer Tile</a>
         <a href="#device">Inside Lofer</a>
       </nav>
-      <a class="button button--small" href="#waitlist">Get early access</a>
+      <a class="button button--small" href="#waitlist" data-waitlist-open>Get early access</a>
     </header>
 
     <main id="top">
@@ -54,7 +54,7 @@
               where in your body needs the most care and design customised programme. It then delivers heat, micro-current
               stimulation and deep-vibration massage, and asks how you feel afterwards.
             </p>
-            <a class="button" href="#waitlist">Join the waitlist</a>
+            <a class="button" href="#waitlist" data-waitlist-open>Join the waitlist</a>
           </div>
         </div>
       </section>
@@ -380,21 +380,19 @@
         <p class="build__note">The hardware is in prototype, and these schematics are a work in progress.</p>
       </section>
 
-      <!-- ───────────── Updates (waitlist not open yet) ───────────── -->
+      <!-- ───────────── Waitlist: the button opens the two-step form (src/waitlist/) ───────────── -->
       <section class="waitlist" id="waitlist" data-tiling="waitlist" aria-labelledby="waitlist-title">
         <p class="tagline reveal">Move · Recover · Live better</p>
         <h2 class="waitlist__title reveal" id="waitlist-title">Be among the first to try Lofer.</h2>
-        <!-- Email sign-up isn't connected to anything yet, so it stays honestly closed.
-             See website/README.md before enabling it. -->
         <div class="waitlist__closed reveal">
-          <button class="button" type="button" disabled>Waitlist opening soon</button>
+          <button class="button" type="button" data-waitlist-open>Join the waitlist</button>
         </div>
       </section>
     </main>
 
     <footer class="footer">
       <span class="wordmark footer__word">Lofer</span>
-      <p>Lofer is in development. © <span data-year></span> Lofer</p>
+      <p>Lofer is in development. © <span data-year></span> Lofer · <a href="./privacy/">Privacy Policy</a></p>
       <p class="footer__disclaimer">
         Lofer is designed for general wellness, relaxation and muscle comfort.
         It is not a medical device, and it is not intended to diagnose, treat,

@@ -672,3 +672,113 @@ h1, h2, h3, p { margin: 0; }
 .tile .gallery { margin: 20px 0 0; }
 /* A render in the empty top of each function card (the card keeps its size). */
 .mode__img { position: absolute; top: 0; left: 0; width: 100%; height: 140px; object-fit: cover; object-position: 50% 45%; display: block; }
+
+/* ───────────── Waitlist modal ─────────────
+   Built by src/waitlist/modal.js. Uses the same tokens, button and type as the rest of the page. */
+html.wl-open { overflow: hidden; }
+.wl {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100svh - 32px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: var(--cream-3);
+  color: var(--ink);
+  box-shadow: 0 30px 80px rgba(36, 30, 27, 0.25);
+  overflow: auto;
+}
+.wl::backdrop { background: rgba(36, 30, 27, 0.45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.wl[open] { animation: wl-pop 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.wl[open]::backdrop { animation: wl-fade 0.35s ease both; }
+.wl [hidden] { display: none !important; }   /* so `hidden` always wins over a step's own display */
+.wl__panel { position: relative; padding: clamp(28px, 6vw, 40px); }
+.wl__close {
+  position: absolute; top: 14px; right: 14px;
+  display: grid; place-items: center; width: 40px; height: 40px;
+  border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.wl__close:hover { background: var(--cream-2); color: var(--ink); }
+.wl__close svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+
+.wl__progress { display: flex; align-items: center; gap: 12px; margin: 0 40px 22px 0; }
+.wl__bars { display: flex; gap: 6px; }
+.wl__bars i { width: 28px; height: 3px; border-radius: 2px; background: var(--line-2); transition: background 0.4s; }
+.wl__bars i.is-on { background: var(--peach-deep); }
+.wl__stepname { font-size: 12px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--peach-deep); }
+
+.wl__step.is-entering { animation: rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.wl__title { font-size: clamp(26px, 5vw, 32px); font-weight: 300; line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 10px; outline: none; }
+.wl__sub { color: var(--muted); font-size: 16px; line-height: 1.5; margin-bottom: 26px; }
+.wl__sub strong { font-weight: 500; color: var(--ink); }
+.wl__joined { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 14px; color: var(--peach-deep); }
+.wl__joined svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.wl__form { display: grid; gap: 18px; }
+.wl__field { display: grid; gap: 8px; }
+.wl__field label { font-size: 14px; font-weight: 500; line-height: 1.35; }
+.wl input[type='text'], .wl input[type='email'], .wl select {
+  width: 100%; height: 52px; padding: 0 16px;
+  border: 1px solid var(--line-2); border-radius: 14px;
+  background: rgba(255, 255, 255, 0.6); color: var(--ink);
+  font: 400 16px/1 var(--font-ui);   /* 16px stops phones zooming in on focus */
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.wl select {
+  appearance: none; -webkit-appearance: none; padding-right: 44px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237d6c63' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; background-size: 18px;
+}
+.wl input:focus-visible, .wl select:focus-visible { outline: none; border-color: var(--peach-deep); box-shadow: 0 0 0 3px rgba(185, 124, 88, 0.2); }
+.wl input[aria-invalid='true'] { border-color: #b4553c; }
+.wl__fielderr, .wl__error { font-size: 14px; line-height: 1.45; color: #a2432c; }
+.wl__error { padding: 12px 14px; border-radius: 12px; background: rgba(180, 85, 60, 0.08); }
+.wl__help { font-size: 13px; line-height: 1.5; color: var(--muted); }
+.wl__note { font-size: 13px; line-height: 1.5; color: var(--muted); text-align: center; }
+.wl__note a, .wl__help a { text-decoration: underline; text-underline-offset: 3px; color: var(--ink); }
+.wl__hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+.wl__consent { display: grid; gap: 8px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; }
+.wl__check { display: flex; align-items: flex-start; gap: 12px; font-size: 15px; line-height: 1.45; cursor: pointer; }
+.wl__check input { flex: none; width: 20px; height: 20px; margin-top: 1px; accent-color: var(--peach-deep); cursor: pointer; }
+
+.wl__submit { width: 100%; }
+.wl__submit:disabled { cursor: default; opacity: 0.85; }
+.wl__submit.is-busy { opacity: 0.7; }
+.wl__actions { display: grid; gap: 10px; }
+.wl__skip {
+  height: 44px; border: 0; background: transparent; color: var(--muted);
+  font: 500 15px/1 var(--font-ui); text-decoration: underline; text-underline-offset: 4px; cursor: pointer;
+}
+.wl__skip:hover { color: var(--ink); }
+.wl__status { min-height: 0; font-size: 13px; color: var(--muted); text-align: center; }
+.wl__status:empty { display: none; }
+
+.wl__step--done { text-align: center; display: grid; justify-items: center; padding: 12px 0 4px; }
+.wl__step--done .wl__sub { margin-bottom: 28px; }
+.wl__tick { display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: 20px; border-radius: 50%; background: rgba(228, 181, 152, 0.35); color: var(--peach-deep); }
+.wl__tick svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 26; stroke-dashoffset: 26; animation: wl-draw 0.6s 0.2s ease forwards; }
+
+@keyframes wl-pop { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes wl-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wl-draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .wl[open], .wl[open]::backdrop, .wl__step.is-entering { animation: none; }
+  .wl__tick svg { animation: none; stroke-dashoffset: 0; }
+}
+
+/* ───────────── Privacy page ───────────── */
+.legal { max-width: 760px; margin: 0 auto; padding: 120px var(--gutter) 80px; }
+.legal h1 { font-size: clamp(36px, 6vw, 56px); font-weight: 300; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 10px; }
+.legal__date { color: var(--muted); font-size: 15px; margin-bottom: 40px; }
+.legal h2 { font-size: 20px; font-weight: 500; letter-spacing: 0.01em; margin: 44px 0 14px; padding-top: 28px; border-top: 1px solid var(--line); scroll-margin-top: 88px; }
+.legal h3 { font-size: 13px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--peach-deep); margin: 26px 0 8px; }
+.legal p { margin: 0 0 14px; line-height: 1.7; color: var(--ink); }
+.legal ul { margin: 0 0 14px; padding-left: 22px; line-height: 1.7; }
+.legal li { margin-bottom: 6px; }
+.legal a { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--peach-deep); }
+.legal a:hover { color: var(--peach-deep); }
+.legal address { font-style: normal; line-height: 1.7; }
+.legal__back { display: inline-flex; margin-top: 40px; }
+.footer a { text-decoration: underline; text-underline-offset: 3px; }
+.footer a:hover { color: var(--ink); }
