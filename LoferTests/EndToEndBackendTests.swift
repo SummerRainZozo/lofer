@@ -10,6 +10,9 @@ import Observation
 @MainActor
 final class EndToEndBackendTests: XCTestCase {
     static let backend = URL(string: ProcessInfo.processInfo.environment["LOFER_BACKEND_URL"] ?? "http://127.0.0.1:8787")!
+    /// The backend's LOFER_CLIENT_KEY, when it requires one. Pass it to `xcodebuild test` as
+    /// TEST_RUNNER_LOFER_CLIENT_KEY=… (xcodebuild hands TEST_RUNNER_ variables to the tests).
+    static let clientKey = ProcessInfo.processInfo.environment["LOFER_CLIENT_KEY"]
 
     /// The mock provider's exact script (deterministic, so every step is checked).
     func testTennisSessionThroughTheLocalBackend() async throws {
@@ -19,7 +22,7 @@ final class EndToEndBackendTests: XCTestCase {
         let memory = BodyMemoryStore(defaults: UserDefaults(suiteName: "lofer.e2e.\(UUID().uuidString)")!)
         memory.clear()
         let device = MockLoferDevice()
-        let m = CareFlowModel(memory: memory, intelligence: APICareIntelligenceService(baseURL: Self.backend),
+        let m = CareFlowModel(memory: memory, intelligence: APICareIntelligenceService(baseURL: Self.backend, clientKey: Self.clientKey),
                               device: device, voice: voice, body: BodySceneController())
         m.reset()
         var log: [String] = []
@@ -103,7 +106,7 @@ final class EndToEndBackendTests: XCTestCase {
         let memory = BodyMemoryStore(defaults: UserDefaults(suiteName: "lofer.e2e.\(UUID().uuidString)")!)
         memory.clear()
         let device = MockLoferDevice()
-        let m = CareFlowModel(memory: memory, intelligence: APICareIntelligenceService(baseURL: Self.backend),
+        let m = CareFlowModel(memory: memory, intelligence: APICareIntelligenceService(baseURL: Self.backend, clientKey: Self.clientKey),
                               device: device, voice: voice, body: BodySceneController())
         m.reset()
         var log: [String] = []
