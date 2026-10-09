@@ -55,7 +55,7 @@ website/
   3. **Guided checks:** real screens from the iOS app (`public/app/`, captured from the `-LoferDemoFull` demo). Re-capture them when the app's look changes.
   4. **The Lofer Loop:** six stages (`src/loop.js` animates however many nodes the diagram has).
   5. **Personal:** what's remembered (reported, checked, tried, afterwards).
-  6. **Inside Lofer:** the real exploded render with seven layers (silicone cover, battery, circuit board, insulating foam, rigid chassis, heater film, hydrogel liner), then tile details (colourways, skin side, latching, dock) and a spec list. Micro-current stimulation is planned but not in the current hardware, and the section says so.
+  6. **Inside Lofer:** the real exploded render with seven layers (silicone cover, battery, circuit board, insulating foam, rigid chassis, heater film, hydrogel liner), then tile details (the cream lineup, skin side, latching, dock) and a spec list. Micro-current stimulation is planned but not in the current hardware, and the section says so.
 - **Claims rules** (check the app and hardware evidence before changing copy):
   - "AI-powered" is the positioning the founders chose. Today's app uses an on-device keyword parser, with an AI backend planned.
   - Name only hardware that's in the prototype drawings (heat: heater film with thermal cut-off; vibration motor; EMG electrodes in the hydrogel liner). EMG is "designed to read muscle activity", not a validated measurement. Compression and EMS are **not** in the current build, so the site no longer lists them.
